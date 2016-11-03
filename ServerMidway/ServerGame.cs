@@ -12,6 +12,7 @@ namespace ServerMidway
 {
     public enum gameState
     {
+        wait,
         setup,
         battle,
         endGame,
@@ -38,6 +39,7 @@ namespace ServerMidway
         private List<Ships> gameServerShipList;
         private List<Ships> player1ShipList = new List<Ships>();
         private List<Ships> player2ShipList = new List<Ships>();
+        private List<TcpClient> listaClientes = new List<TcpClient>();
         private int shipPlayerId1, shipPlayerId2;
         private Ships tempShip;
         private gameState estado;
@@ -79,9 +81,22 @@ namespace ServerMidway
             }
             catch
             {
+                Console.WriteLine("Mensagem Falhou o Envio!!");
                 //Mensagem não enviada
             }
         }
+
+        TcpClient checkExistenciaClient(TcpClient checkCliente)
+        {
+            foreach (TcpClient client in listaClientes)
+            {
+                if (client == checkCliente)
+                {
+                    return client;
+                }
+            }
+        }
+
         void escutarClientes()
         {
             tcpListener.Start();
@@ -91,14 +106,21 @@ namespace ServerMidway
                 //blocks until a client has connected to the server
                 TcpClient client = new TcpClient();
                 client = this.tcpListener.AcceptTcpClient();
+
+
                 NetworkStream clientStream = client.GetStream();
+                listaClientes.Add(client);
+
                 Enviar_mensagem("Teste a Mensagem Servidor 1", client);
                 Enviar_mensagem("Teste a Mensagem Servidor 2", client);
                 Enviar_mensagem("Teste a Mensagem Servidor 3", client);
                 Enviar_mensagem("Teste a Mensagem Servidor 4", client);
                 Enviar_mensagem("Teste a Mensagem Servidor 5", client);
                 //create a thread to handle communication
-                if (contar == 2)
+                contar++;
+                Console.WriteLine("Contar {0} !!",contar);
+
+                if (contar % 2 == 0)
                 {
                     LogicadeJogo();
                     contar++;
@@ -149,6 +171,8 @@ namespace ServerMidway
 
                 string mensagem = encoder.GetString(message, 0, bytesRead);
                 Console.WriteLine(mensagem);
+
+                //if(mensagem == '')
                 //object objecto_mensagem = (object)mensagem;
                 //object objecto_cliente = (object)tcpClient;
 

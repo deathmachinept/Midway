@@ -6,24 +6,39 @@ using System.Net.Sockets;
 using System.Collections.Generic;
 using System;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 
+
 namespace RedesProjectoMidway
 {
+    public enum gameState
+    {
+        wait,
+        setup,
+        battle,
+        endGame,
+    }
+
+
     /// <summary>
     /// This is the main type for your game.
     /// </summary>
     public class Game1 : Game
     {
+        public gameState estadoCliente;
         GraphicsDeviceManager graphics;
         SpriteBatch spriteBatch;
-        private int timer;
-        private Texture2D water;
+        private PoolAvailableShip listadeTiposdeNavios;
 
+        private SpriteFont FontParaTitulos;
+        private int timer;
+        private Texture2D water, cruise;
+        private int screenWidth, screenHeight;
 
         TcpListener tcpListener;
         Thread listenThread;
@@ -34,43 +49,75 @@ namespace RedesProjectoMidway
 
 
         private Texture2D waterTexture2D;
-        Vector2 scaleSprite;
+        Vector2 scaleSprite = new Vector2(0.2f,0.2f);
         float scaleImagens = 0.50f;
 
-        private int width = 20, height = 10;
+        private int DrawStartWidth, DrawStartHeight, EndDrawWidth, EndDrawHeight;
+        private int cellSize = 64;
+        private int widthBoard = 20, heightBoard = 11;
         public static char[,] board;
         public char[,] boardPlayer;
         public char[,] boardOponent;
-        
+        public int Jogador1Budget = 500, Jogador2Budget = 500;
+        private bool leftMouseClique = false;
+        private Vector2 posicaoEmClique;
+
+        private Vector2 ScaleImagem = new Vector2(0.5f,0.5f);
 
         private TcpClient client;
         private NetworkStream clientStream;
         private Thread waitForServerMessages, processMessage;
         private Tuple<TcpClient, NetworkStream> clientAndStream;
 
+        private List<InterfaceCelula> ListaGrid;
+        private List<Button> ListaButton;
 
+        private Interface interfacedeJogInterface;
 
         public Game1()
         {
             graphics = new GraphicsDeviceManager(this);
             Content.RootDirectory = "Content";
+            
+            graphics.PreferredBackBufferWidth = 1366;
+            graphics.PreferredBackBufferHeight = 768;
+
+
+
+            graphics.IsFullScreen = false;
+            graphics.ApplyChanges();
+            //GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width;
+            //GraphicsAdapter.DefaultAdapter.CurrentDisplayMode;
+
+
+
         }
 
-        /// <summary>
-        /// Allows the game to perform any initialization it needs to before starting to run.
-        /// This is where it can query for any required services and load any non-graphic
-        /// related content.  Calling base.Initialize will enumerate through any components
-        /// and initialize them as well.
-        /// </summary>
+
         protected override void Initialize()
         {
             // TODO: Add your initialization logic here
-            board = new char[width,height];
+            //graphics.PreferredBackBufferWidth = this.GraphicsDevice.DisplayMode.Width;
+            //graphics.PreferredBackBufferHeight = this.graphics.GraphicsDevice.DisplayMode.Height;
+            //graphics.IsFullScreen = true;
+            estadoCliente = gameState.wait;
+            screenWidth = graphics.PreferredBackBufferWidth;
+            screenHeight = graphics.PreferredBackBufferHeight;
+            //graphics.ApplyChanges();
+            FontParaTitulos = Content.Load<SpriteFont>("FontTitulos");
+            int UnidadeStartWidth = (int)((screenWidth / cellSize)); //22
+            int UnidadeStartHeight = (int)((screenHeight / cellSize));
+            DrawStartWidth = (int)(UnidadeStartWidth + cellSize / 2);
+            DrawStartHeight = (int)(UnidadeStartHeight + cellSize / 2);
+
+
+            board = new char[widthBoard,heightBoard];
+            IsMouseVisible = true;
 
             base.Initialize();
         }
 
-
+        #region redes
         private void ConnectToServer(string servidor, int porto)
         {
 
@@ -182,34 +229,67 @@ namespace RedesProjectoMidway
         /// LoadContent will be called once per game and is the place to load
         /// all of your content.
         /// </summary>
+        ///
+        #endregion
+
         protected override void LoadContent()
         {
             // Create a new SpriteBatch, which can be used to draw textures.
             spriteBatch = new SpriteBatch(GraphicsDevice);
             water = Content.Load<Texture2D>("Water");
+            cruise = Content.Load<Texture2D>("JapaneseCruise");
+            //ListaGrid = new List<InterfaceCelula>();
+            ListaButton = new List<Button>();
+
+
+            //for (int x = 0; x < widthBoard; x++)
+            //{
+            //    for (int y = 0; y < heightBoard; y++)
+            //    {
+            //        InterfaceCelula tempGrid = new InterfaceCelula(graphics.GraphicsDevice,water,new Vector2(x * 64 + (DrawStartWidth), y * 64 + (DrawStartHeight)), new Vector2(0.25f, 0.25f));
+            //        ListaGrid.Add(tempGrid);
+
+            //        //Console.WriteLine("x " + x + "Y " + y + "Coordenadas " + new Vector2(x * DrawStartWidth + DrawStartWidth, y * DrawStartHeight + DrawStartHeight));
+            //    }
+            //}
+
+
+            for (int x = 0; x < widthBoard; x++)
+            {
+                for (int y = 0; y < heightBoard; y++)
+                {
+                    Button tempButton = new Button(graphics.GraphicsDevice, water, new Vector2(x * cellSize + (DrawStartWidth), y * cellSize + (DrawStartHeight)), new Vector2(0.25f, 0.25f));
+                    ListaButton.Add(tempButton);
+                    //Console.WriteLine("pos "+tempButton.changePositionB);
+                }
+            }
+            Console.WriteLine("Coordenadas " + new Vector2( cellSize + DrawStartWidth, cellSize + DrawStartHeight));
+
+            if (estadoCliente == gameState.setup)
+            {
+                interfacedeJogInterface = new Interface(graphics.GraphicsDevice, Content, screenWidth, screenHeight, 1, cellSize, DrawStartWidth, DrawStartHeight);
+            }
+            
             // TODO: use this.Content to load your game content here
         }
 
-        /// <summary>
-        /// UnloadContent will be called once per game and is the place to unload
-        /// game-specific content.
-        /// </summary>
+
         protected override void UnloadContent()
         {
             // TODO: Unload any non ContentManager content here
         }
 
-        /// <summary>
-        /// Allows the game to run logic such as updating the world,
-        /// checking for collisions, gathering input, and playing audio.
-        /// </summary>
-        /// <param name="gameTime">Provides a snapshot of timing values.</param>
         protected override void Update(GameTime gameTime)
         {
             if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
                 Exit();
 
             KeyboardState state = Keyboard.GetState();
+            MouseState mouseState = Mouse.GetState();
+            if (mouseState.LeftButton == ButtonState.Pressed)
+            {
+                posicaoEmClique = new Vector2(mouseState.X, mouseState.Y);
+            }
             timer = timer + 10;
             if (state.IsKeyDown(Keys.Left) && timer>500 )
             {
@@ -224,16 +304,42 @@ namespace RedesProjectoMidway
                 SendMessageToServer("HELLO WORLD!!");
                 
             }
-            // TODO: Add your update logic here
+            if (state.IsKeyDown(Keys.Up) && timer > 1000)
+            {
+                // TODO: Add your update logic here
+                Console.WriteLine("Screen Width "+screenWidth+"Screen Height " + screenHeight + "Draw sTart Wdith "+DrawStartWidth + 
+                    " Draw Star Height "+ DrawStartHeight + " End Draw Star Width " + EndDrawWidth +
+                                  " End Draw Star Height " +EndDrawHeight);
+            }
 
+            //for (int i = 0; i < ListaButton.Count; i++)
+            //{
+            //    ListaButton[i].Update(mouseState, gameTime);
+            //    if (ListaButton[i].Foi_Clicado)
+            //    {
+            //       // Console.WriteLine("Cliquei " + i + " X " + (int)(ListaButton[i].Posicao.X/64) + " Y " + (int)(ListaButton[i].Posicao.Y/64));
+            //    }
+            //}
+            if(estadoCliente == gameState.setup)
+            interfacedeJogInterface.Update(mouseState, gameTime);
 
+            //foreach (Button objCelula in ListaButton)
+            //{
+            //    objCelula.Update(mouseState, gameTime);
+            //    if (objCelula.Foi_Clicado)
+            //    {
+            //        Console.WriteLine("Cliquei " + objCelula.Posicao);
+            //    }
+            //}
+
+            //foreach (InterfaceCelula objCelula in ListaGrid)
+            //{
+            //    objCelula.Update(mouseState, gameTime);
+            //}
+            //interfacedeJogInterface.Update(mouseState,gameTime);
             base.Update(gameTime);
         }
 
-        /// <summary>
-        /// This is called when the game should draw itself.
-        /// </summary>
-        /// <param name="gameTime">Provides a snapshot of timing values.</param>
         protected override void Draw(GameTime gameTime)
         {
 
@@ -241,19 +347,60 @@ namespace RedesProjectoMidway
 
             // TODO: Add your drawing code here
 
-            
+            //Vector2 location = new Vector2(400, 240);
+
+            //Vector2 origin = new Vector2(0, 0);
+
+            //spriteBatch.Draw(arrow, location, sourceRectangle, Color.White, angle, origin, 1.0f, SpriteEffects.None, 1);
+
+
+            spriteBatch.Begin();
 
 
 
-            for (int x = 0; x < width; x++)
+            //for (int x = 0; x < widthBoard; x++)
+            //{
+            //    for (int y = 0; y < heightBoard; y++)
+            //    {
+            //        Rectangle _sourceRectangle = new Rectangle(0, 0, water.Width, water.Height);
+
+            //        spriteBatch.Draw(water, new Vector2(x * 64 + (DrawStartWidth), y * 64 + (DrawStartHeight)), sourceRectangle: _sourceRectangle, scale: new Vector2(0.25f, 0.25f), color: Color.White);
+
+
+            //        //Console.WriteLine("x " + x + "Y " + y + "Coordenadas " + new Vector2(x * DrawStartWidth + DrawStartWidth, y * DrawStartHeight + DrawStartHeight));
+            //    }
+            //}
+
+            //foreach (InterfaceCelula objCelula in ListaGrid)
+            //{
+            //    objCelula.Draw(spriteBatch,FontParaTitulos);
+
+            //}
+
+            foreach (Button objCelula in ListaButton)
             {
-                for (int y = 0; y < height; y++)
-                {
-                    spriteBatch.Draw(water, new Vector2(x*width, y*height), scale: scaleSprite, color: Color.White);
-                }
-            }
+                objCelula.Draw(spriteBatch);
 
+            }
+            if (estadoCliente == gameState.setup)
+            interfacedeJogInterface.Draw(spriteBatch,FontParaTitulos);
+
+            spriteBatch.DrawString(FontParaTitulos, "Jogador 1 ", new Vector2(15f, 15f),Color.Black);
+            spriteBatch.DrawString(FontParaTitulos, "Budget: " + Jogador1Budget, new Vector2(15f, 45f), Color.Black);
+
+            spriteBatch.DrawString(FontParaTitulos, "Jogador 2 ", new Vector2(screenWidth-100f, 15f), Color.Black);
+            spriteBatch.DrawString(FontParaTitulos, "Budget: " + Jogador1Budget, new Vector2(screenWidth-100f, 45f), Color.Black);
+
+            spriteBatch.DrawString(FontParaTitulos, "Posicao Rato: " + posicaoEmClique, new Vector2((float)screenWidth/2, 15f), Color.White);
+
+
+
+
+            spriteBatch.End();
             base.Draw(gameTime);
+
+
+
         }
     }
 }
