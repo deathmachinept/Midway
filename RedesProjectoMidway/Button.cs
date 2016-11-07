@@ -86,7 +86,7 @@ namespace RedesProjectoMidway
 
        
 
-        protected void novaEscalaRectangulo(Point posicaoRato, Vector2 novaEscala)
+        public void novaEscalaRectangulo(Point posicaoRato, Vector2 novaEscala)
         {
             this.boundingBox = new Rectangle((int)posicaoRato.X, (int)posicaoRato.Y, (int)(Textura.Width * novaEscala.X), (int)(Textura.Height * novaEscala.Y));
         }

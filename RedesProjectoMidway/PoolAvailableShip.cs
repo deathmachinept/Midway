@@ -32,7 +32,7 @@ namespace RedesProjectoMidway
         {
             foreach (ShipsClient infoNavio in NaviosDisponiveis)
             {
-                if (infoNavio.getID == obterInfodeTipoNavioShip)
+                if (infoNavio.getTipo == obterInfodeTipoNavioShip)
                 {
                     return infoNavio;
                 }

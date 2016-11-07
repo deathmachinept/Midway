@@ -9,8 +9,10 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
+using Common;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+
 
 
 
@@ -55,9 +57,7 @@ namespace RedesProjectoMidway
         private int DrawStartWidth, DrawStartHeight, EndDrawWidth, EndDrawHeight;
         private int cellSize = 64;
         private int widthBoard = 20, heightBoard = 11;
-        public static char[,] board;
-        public char[,] boardPlayer;
-        public char[,] boardOponent;
+        public static string[,] board;
         public int Jogador1Budget = 500, Jogador2Budget = 500;
         private bool leftMouseClique = false;
         private Vector2 posicaoEmClique;
@@ -73,6 +73,16 @@ namespace RedesProjectoMidway
         private List<Button> ListaButton;
 
         private Interface interfacedeJogInterface;
+        private bool iniciarInterface = true, once = false;
+
+        private String MensagemServer = " ", Debug = " ", Debug2 = " ";
+        int cmd;
+
+        private List<ShipsClient> listaTesteNavio;
+        private string[,] testeBoard;
+
+        private Mensagem EnviarMensageJson;
+
 
         public Game1()
         {
@@ -100,7 +110,8 @@ namespace RedesProjectoMidway
             //graphics.PreferredBackBufferWidth = this.GraphicsDevice.DisplayMode.Width;
             //graphics.PreferredBackBufferHeight = this.graphics.GraphicsDevice.DisplayMode.Height;
             //graphics.IsFullScreen = true;
-            estadoCliente = gameState.wait;
+            estadoCliente = gameState.setup;
+            once = true;
             screenWidth = graphics.PreferredBackBufferWidth;
             screenHeight = graphics.PreferredBackBufferHeight;
             //graphics.ApplyChanges();
@@ -111,7 +122,7 @@ namespace RedesProjectoMidway
             DrawStartHeight = (int)(UnidadeStartHeight + cellSize / 2);
 
 
-            board = new char[widthBoard,heightBoard];
+            board = new string[widthBoard,heightBoard];
             IsMouseVisible = true;
 
             base.Initialize();
@@ -137,7 +148,7 @@ namespace RedesProjectoMidway
             }
             catch (Exception e)
             {
-                Console.WriteLine("Error a No server connection");
+                Debug = "Error a No server connection";
             }
 
         }
@@ -159,7 +170,7 @@ namespace RedesProjectoMidway
                         var bytesRead = networkStream.Read(receiveBuffer, 0, (int)client.ReceiveBufferSize);
                         if (bytesRead == 0)
                         {
-                            Console.WriteLine("Perdeu Player");
+                            Debug= "Perdeu Player";
                             // Read returns 0 if the client closes the connection
                             break;
                         }
@@ -174,34 +185,73 @@ namespace RedesProjectoMidway
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine("ReceivePortMessages: " + ex.ToString());
+                        Debug = "ReceivePortMessages: " + ex.ToString();
                         break;
                     }
                 }
             }
         }
 
-        private void SendMessageToServer(string message)
+        public void SendMessageToServer(Mensagem message)
         {
             try
             {
                 ASCIIEncoding encoder = new ASCIIEncoding();
-                byte[] buffer = encoder.GetBytes(message);
+                byte[] buffer = message.ByteMessage();
 
                 clientStream.Write(buffer, 0, buffer.Length);
                 clientStream.Flush();
             }
             catch
             {
-                Console.WriteLine("Erro no envio de mensagem para o servidor!");
+                Debug = "Erro no envio de mensagem para o servidor!";
             }
         }
 
         private void ProcessServerMessage(object obj)
         {
-            string json = (string)obj;
-            Console.WriteLine(json);
+            string mensagem = (string) obj;
 
+
+            string[] messages = mensagem.Split(';');
+            foreach (string var in messages)
+            {
+                Console.WriteLine(var);
+            }
+
+            if (messages.Length == 2)
+            {
+                Debug2 = mensagem;
+                mensagem = messages[0];
+            }
+            else if (messages.Length > 2)
+            {
+                mensagem = messages[messages.Length-2];
+                //Debug = "CAGUEI!"+mensagem;
+                //Debug2 = "CAGUEI!"+mensagem;
+            }
+
+            //Debug = "Mensagem : " + mensagem;
+            string commando = mensagem.Substring(0, 1);
+
+            bool temComando = Int32.TryParse(commando, out cmd);
+            Console.WriteLine("TEMO COMANDO  " + temComando + " commando ");
+            //Debug = "Tem Commando " + temComando + " cmd : "+ cmd;
+            if (temComando)
+            {
+                switch (cmd)
+                {
+                    case 0:
+                        MensagemServer = mensagem.Substring(1);
+                        break;
+                    case 1:
+                        iniciarInterface = true;
+                        estadoCliente = gameState.setup;
+                        //Debug = "Tem Commando " + temComando + " cmd : " + cmd;
+
+                        break;
+                }
+            }
 
 
             //JsonTextReader reader = new JsonTextReader(new StringReader(json));
@@ -242,16 +292,6 @@ namespace RedesProjectoMidway
             ListaButton = new List<Button>();
 
 
-            //for (int x = 0; x < widthBoard; x++)
-            //{
-            //    for (int y = 0; y < heightBoard; y++)
-            //    {
-            //        InterfaceCelula tempGrid = new InterfaceCelula(graphics.GraphicsDevice,water,new Vector2(x * 64 + (DrawStartWidth), y * 64 + (DrawStartHeight)), new Vector2(0.25f, 0.25f));
-            //        ListaGrid.Add(tempGrid);
-
-            //        //Console.WriteLine("x " + x + "Y " + y + "Coordenadas " + new Vector2(x * DrawStartWidth + DrawStartWidth, y * DrawStartHeight + DrawStartHeight));
-            //    }
-            //}
 
 
             for (int x = 0; x < widthBoard; x++)
@@ -263,12 +303,16 @@ namespace RedesProjectoMidway
                     //Console.WriteLine("pos "+tempButton.changePositionB);
                 }
             }
-            Console.WriteLine("Coordenadas " + new Vector2( cellSize + DrawStartWidth, cellSize + DrawStartHeight));
+            //Console.WriteLine("Coordenadas " + new Vector2( cellSize + DrawStartWidth, cellSize + DrawStartHeight));
+            listaTesteNavio = new List<ShipsClient>();
+            ShipsClient testeNavio = new ShipsClient(typeShip.battleship,Content);
+            listaTesteNavio.Add(testeNavio);
+            ShipsClient testeNavio1 = new ShipsClient(typeShip.battleship, Content);
+            listaTesteNavio.Add(testeNavio1);
 
-            if (estadoCliente == gameState.setup)
-            {
-                interfacedeJogInterface = new Interface(graphics.GraphicsDevice, Content, screenWidth, screenHeight, 1, cellSize, DrawStartWidth, DrawStartHeight);
-            }
+            testeBoard = new string[2,2]{{"One","Test"},{"Sent","Kill"}};
+
+            
             
             // TODO: use this.Content to load your game content here
         }
@@ -284,6 +328,13 @@ namespace RedesProjectoMidway
             if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
                 Exit();
 
+            if (iniciarInterface == true)
+            {
+                interfacedeJogInterface = new Interface(graphics.GraphicsDevice, Content, screenWidth, screenHeight, 1, cellSize, DrawStartWidth, DrawStartHeight,Jogador1Budget,clientStream);
+                iniciarInterface = false;
+                once = true;
+            }
+
             KeyboardState state = Keyboard.GetState();
             MouseState mouseState = Mouse.GetState();
             if (mouseState.LeftButton == ButtonState.Pressed)
@@ -295,14 +346,17 @@ namespace RedesProjectoMidway
             {
                 timer = 0;
                 ConnectToServer("localhost", 7777);
-                Console.WriteLine("Connected!!");
+                //Console.WriteLine("Connected!!");
             }
             if (state.IsKeyDown(Keys.Right) && timer>1000 )
             {
                 timer = 0;
-                Console.WriteLine("Tentando Enviar!");
-                SendMessageToServer("HELLO WORLD!!");
-                
+                //Console.WriteLine("Tentando Enviar!");
+                //SendMessageToServer("HELLO WORLD!!");
+                Mensagem novaMsg = new Mensagem(mensagemStateClient.setup);
+                SendMessageToServer(novaMsg);
+
+
             }
             if (state.IsKeyDown(Keys.Up) && timer > 1000)
             {
@@ -312,31 +366,15 @@ namespace RedesProjectoMidway
                                   " End Draw Star Height " +EndDrawHeight);
             }
 
-            //for (int i = 0; i < ListaButton.Count; i++)
-            //{
-            //    ListaButton[i].Update(mouseState, gameTime);
-            //    if (ListaButton[i].Foi_Clicado)
-            //    {
-            //       // Console.WriteLine("Cliquei " + i + " X " + (int)(ListaButton[i].Posicao.X/64) + " Y " + (int)(ListaButton[i].Posicao.Y/64));
-            //    }
-            //}
-            if(estadoCliente == gameState.setup)
-            interfacedeJogInterface.Update(mouseState, gameTime);
 
-            //foreach (Button objCelula in ListaButton)
-            //{
-            //    objCelula.Update(mouseState, gameTime);
-            //    if (objCelula.Foi_Clicado)
-            //    {
-            //        Console.WriteLine("Cliquei " + objCelula.Posicao);
-            //    }
-            //}
 
-            //foreach (InterfaceCelula objCelula in ListaGrid)
-            //{
-            //    objCelula.Update(mouseState, gameTime);
-            //}
-            //interfacedeJogInterface.Update(mouseState,gameTime);
+            if (estadoCliente == gameState.setup && once == true)
+            {
+                interfacedeJogInterface.Update(mouseState, gameTime);
+                Jogador1Budget = interfacedeJogInterface.updateBudget;
+            }
+
+
             base.Update(gameTime);
         }
 
@@ -345,53 +383,32 @@ namespace RedesProjectoMidway
 
             GraphicsDevice.Clear(Color.CornflowerBlue);
 
-            // TODO: Add your drawing code here
-
-            //Vector2 location = new Vector2(400, 240);
-
-            //Vector2 origin = new Vector2(0, 0);
-
-            //spriteBatch.Draw(arrow, location, sourceRectangle, Color.White, angle, origin, 1.0f, SpriteEffects.None, 1);
-
-
             spriteBatch.Begin();
 
 
 
             //for (int x = 0; x < widthBoard; x++)
-            //{
-            //    for (int y = 0; y < heightBoard; y++)
-            //    {
-            //        Rectangle _sourceRectangle = new Rectangle(0, 0, water.Width, water.Height);
 
-            //        spriteBatch.Draw(water, new Vector2(x * 64 + (DrawStartWidth), y * 64 + (DrawStartHeight)), sourceRectangle: _sourceRectangle, scale: new Vector2(0.25f, 0.25f), color: Color.White);
-
-
-            //        //Console.WriteLine("x " + x + "Y " + y + "Coordenadas " + new Vector2(x * DrawStartWidth + DrawStartWidth, y * DrawStartHeight + DrawStartHeight));
-            //    }
-            //}
-
-            //foreach (InterfaceCelula objCelula in ListaGrid)
-            //{
-            //    objCelula.Draw(spriteBatch,FontParaTitulos);
-
-            //}
 
             foreach (Button objCelula in ListaButton)
             {
                 objCelula.Draw(spriteBatch);
 
             }
-            if (estadoCliente == gameState.setup)
-            interfacedeJogInterface.Draw(spriteBatch,FontParaTitulos);
-
+            if (estadoCliente == gameState.setup && once == true)
+            {
+                interfacedeJogInterface.Draw(spriteBatch, FontParaTitulos);
+            }
             spriteBatch.DrawString(FontParaTitulos, "Jogador 1 ", new Vector2(15f, 15f),Color.Black);
             spriteBatch.DrawString(FontParaTitulos, "Budget: " + Jogador1Budget, new Vector2(15f, 45f), Color.Black);
 
             spriteBatch.DrawString(FontParaTitulos, "Jogador 2 ", new Vector2(screenWidth-100f, 15f), Color.Black);
             spriteBatch.DrawString(FontParaTitulos, "Budget: " + Jogador1Budget, new Vector2(screenWidth-100f, 45f), Color.Black);
 
-            spriteBatch.DrawString(FontParaTitulos, "Posicao Rato: " + posicaoEmClique, new Vector2((float)screenWidth/2, 15f), Color.White);
+            //spriteBatch.DrawString(FontParaTitulos, "Posicao Rato: " + posicaoEmClique, new Vector2((float)screenWidth/2, 15f), Color.White);
+            spriteBatch.DrawString(FontParaTitulos, MensagemServer, new Vector2((float)screenWidth / 2, 15f), Color.White);
+            spriteBatch.DrawString(FontParaTitulos, Debug, new Vector2((float)screenWidth / 2, 25f), Color.White);
+            spriteBatch.DrawString(FontParaTitulos, Debug2, new Vector2((float)screenWidth / 2, 35f), Color.White);
 
 
 

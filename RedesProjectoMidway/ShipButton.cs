@@ -27,7 +27,7 @@ namespace RedesProjectoMidway
         public bool devoGerarNovoButton
         {
             get { return this.gerarNovoButton; }
-                        set {gerarNovoButton=value; }
+            set {gerarNovoButton=value; }
 
 
         }
@@ -35,6 +35,7 @@ namespace RedesProjectoMidway
         public Rectangle obterRectangle
         {
             get { return this.rectanguloUnidade; }
+            set {  this.rectanguloUnidade = value; }
         }
 
         public typeShip getShipType        

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
+using Newtonsoft.Json;
 
 namespace RedesProjectoMidway
 {
@@ -20,17 +21,20 @@ namespace RedesProjectoMidway
     class ShipsClient
     {
 
-
-
             private int hp;
             private int speed;
             private int damage;
             private int range;
             private int points, size;
-        private Vector2 CoordenadasNavio;
+            private int IdUnidade;
+            private Point[] CoordenadasNavio;
             public string name;
+            [JsonIgnore]
             private ContentManager pastaRoot;
+            [JsonIgnore]
             private Texture2D textureNavio;
+
+            [JsonIgnore]
             private ContentManager pastaContent;
             private typeShip tipo;
 
@@ -40,30 +44,27 @@ namespace RedesProjectoMidway
             {
                 tipo = selectShip;
                 pastaContent = content;
-                //switch (idShip)
-                //{
-                //    case 0:
-                //        tipo = typeShip.destroyer;
-                //        break;
-                //    case 1:
-                //        tipo = typeShip.cruiser;
-                //        break;
-                //    case 2:
-                //        tipo = typeShip.battleship;
-                //        break;
-                //    case 3:
-                //        tipo = typeShip.carrier;
-                //        break;
-                //}
-                 preencherShip(tipo);
+                CoordenadasNavio = new Point[4];
+                preencherShip(tipo);
             }
 
 
-            public typeShip getID
+            public typeShip getTipo
             {
-                                get { return this.tipo; }
-
+               get { return this.tipo; }
             }
+
+            public int getHP
+            {
+                get { return this.hp; }
+                set { this.hp = value; }
+            }
+            public int setGetID
+            {
+                get { return this.IdUnidade; }
+                set { this.IdUnidade = value; }
+            }
+
             public int Cost
             {
                 get { return this.points; }
@@ -74,7 +75,7 @@ namespace RedesProjectoMidway
                 get { return this.size; }
             }
 
-            public Vector2 GetSetCoordenadas
+            public Point[] GetSetCoordenadas
             {
                 get { return this.CoordenadasNavio; }
                 set { this.CoordenadasNavio=value; }
