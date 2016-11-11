@@ -6,12 +6,12 @@ using System.Threading.Tasks;
 
 namespace Common
 {
-    public enum typeShip
+    public enum typeShips
     {
-        destroyer,
-        cruiser,
-        battleship,
-        carrier
+        destroyer = 0,
+        cruiser = 1,
+        battleship = 2,
+        carrier = 3
     }
 
 
@@ -21,27 +21,27 @@ namespace Common
         private int speed;
         private int damage;
         private int range;
-        private int points, size;
-        private int[][] CoordenadasNavio;
+        private int points, sizeNavio;
+        private int[,] CoordenadasNavio;
         public string name;
         //private ContentManager pastaRoot;
         //private Texture2D textureNavio;
         //private ContentManager pastaContent;
-        private typeShip tipo;
+        private typeShips tipo;
 
         //private
 
-        public Ships(typeShip selectShip)
+        public Ships(typeShips selectShip)
         {
             tipo = selectShip;
             preencherShip(tipo);
         }
 
 
-        public typeShip getID
+        public typeShips getID
         {
             get { return this.tipo; }
-
+            set { this.tipo = value ; }
         }
         public int Cost
         {
@@ -56,10 +56,10 @@ namespace Common
 
         public int getSize
         {
-            get { return this.size; }
+            get { return this.sizeNavio; }
         }
 
-        public int[][] GetSetCoordenadas
+        public int[,] GetSetCoordenadas
         {
             get { return this.CoordenadasNavio; }
             set { this.CoordenadasNavio = value; }
@@ -72,7 +72,7 @@ namespace Common
 
 
 
-        void preencherShip(typeShip tipo)
+        void preencherShip(typeShips tipo)
         {
             int idTipo = (int)tipo;
 
@@ -85,16 +85,18 @@ namespace Common
                     this.range = 2;
                     this.points = 50;
                     this.name = "Destroyer";
-                    this.size = 2;
+                    this.getID = typeShips.destroyer;
+                    this.sizeNavio = 2;
                     break;
                 case 1: //cruiser
-                    this.hp = 100;
+                    this.hp = 120;
                     this.speed = 3;
                     this.damage = 35;
                     this.range = 3;
                     this.points = 80;
+                    this.sizeNavio = 3;
                     this.name = "Cruiser";
-                    this.size = 3;
+                    this.getID = typeShips.cruiser;
                     break;
                 case 2: //BattleShip
                     this.hp = 300;
@@ -103,7 +105,9 @@ namespace Common
                     this.range = 4;
                     this.points = 120;
                     this.name = "Battleship";
-                    this.size = 4;
+                    this.sizeNavio = 4;
+                    this.getID = typeShips.battleship;
+
                     break;
                 case 3: //Carrier
                     this.hp = 250;
@@ -112,7 +116,9 @@ namespace Common
                     this.range = 3;
                     this.points = 150;
                     this.name = "Carrier";
-                    this.size = 4;
+                    this.sizeNavio = 4;
+                    this.getID = typeShips.carrier;
+
                     break;
             }
         }

@@ -48,10 +48,11 @@ namespace RedesProjectoMidway
         Thread processar;
         Thread broadcast;
         private int port = 7777;
+        private int playerID;
 
 
         private Texture2D waterTexture2D;
-        Vector2 scaleSprite = new Vector2(0.2f,0.2f);
+        Vector2 scaleSprite = new Vector2(0.2f, 0.2f);
         float scaleImagens = 0.50f;
 
         private int DrawStartWidth, DrawStartHeight, EndDrawWidth, EndDrawHeight;
@@ -62,7 +63,7 @@ namespace RedesProjectoMidway
         private bool leftMouseClique = false;
         private Vector2 posicaoEmClique;
 
-        private Vector2 ScaleImagem = new Vector2(0.5f,0.5f);
+        private Vector2 ScaleImagem = new Vector2(0.5f, 0.5f);
 
         private TcpClient client;
         private NetworkStream clientStream;
@@ -73,10 +74,10 @@ namespace RedesProjectoMidway
         private List<Button> ListaButton;
 
         private Interface interfacedeJogInterface;
-        private bool iniciarInterface = true, once = false;
+        private bool iniciarInterface = false, once = false, insercaoShip = false, aguardaConfirmacao = false, onceMessage = false;
 
-        private String MensagemServer = " ", Debug = " ", Debug2 = " ";
-        int cmd;
+        private String MensagemServer = " ", Debug = " ", Debug2 = " ", Debug3 = " ";
+        private int cmd; float timerForMessageAction = 0f, TimeSinceWaiting = 0f;
 
         private List<ShipsClient> listaTesteNavio;
         private string[,] testeBoard;
@@ -88,7 +89,7 @@ namespace RedesProjectoMidway
         {
             graphics = new GraphicsDeviceManager(this);
             Content.RootDirectory = "Content";
-            
+
             graphics.PreferredBackBufferWidth = 1366;
             graphics.PreferredBackBufferHeight = 768;
 
@@ -110,8 +111,8 @@ namespace RedesProjectoMidway
             //graphics.PreferredBackBufferWidth = this.GraphicsDevice.DisplayMode.Width;
             //graphics.PreferredBackBufferHeight = this.graphics.GraphicsDevice.DisplayMode.Height;
             //graphics.IsFullScreen = true;
-            estadoCliente = gameState.setup;
-            once = true;
+            estadoCliente = gameState.wait;
+            once = false;
             screenWidth = graphics.PreferredBackBufferWidth;
             screenHeight = graphics.PreferredBackBufferHeight;
             //graphics.ApplyChanges();
@@ -122,7 +123,7 @@ namespace RedesProjectoMidway
             DrawStartHeight = (int)(UnidadeStartHeight + cellSize / 2);
 
 
-            board = new string[widthBoard,heightBoard];
+            board = new string[widthBoard, heightBoard];
             IsMouseVisible = true;
 
             base.Initialize();
@@ -141,7 +142,7 @@ namespace RedesProjectoMidway
 
                 clientAndStream = Tuple.Create<TcpClient, NetworkStream>(client, clientStream);
 
-                //thread que fica a aguardar comunicações iniciadas pelo servidor
+                //Cria thread para comunicacao com servidor
                 waitForServerMessages = new Thread(new ParameterizedThreadStart(ReceiveServerMessage));
                 waitForServerMessages.IsBackground = true;
                 waitForServerMessages.Start(clientAndStream);
@@ -170,7 +171,7 @@ namespace RedesProjectoMidway
                         var bytesRead = networkStream.Read(receiveBuffer, 0, (int)client.ReceiveBufferSize);
                         if (bytesRead == 0)
                         {
-                            Debug= "Perdeu Player";
+                            Debug = "Perdeu Player";
                             // Read returns 0 if the client closes the connection
                             break;
                         }
@@ -210,68 +211,58 @@ namespace RedesProjectoMidway
 
         private void ProcessServerMessage(object obj)
         {
-            string mensagem = (string) obj;
 
+            string mensagem = (string)obj;
 
-            string[] messages = mensagem.Split(';');
-            foreach (string var in messages)
+            Mensagem mensagemJson = JsonConvert.DeserializeObject<Mensagem>(mensagem);
+
+            if (mensagemJson.estadoMensagem == mensagemStateClient.id)
             {
-                Console.WriteLine(var);
+                string player_ID = mensagemJson.getMessageString;
+                Debug3 = player_ID;
+                playerID = Int32.Parse(player_ID);
+                iniciarInterface = true;
+                estadoCliente = gameState.setup;
+
             }
-
-            if (messages.Length == 2)
+            if (mensagemJson.estadoMensagem == mensagemStateClient.confirmacao)
             {
-                Debug2 = mensagem;
-                mensagem = messages[0];
-            }
-            else if (messages.Length > 2)
-            {
-                mensagem = messages[messages.Length-2];
-                //Debug = "CAGUEI!"+mensagem;
-                //Debug2 = "CAGUEI!"+mensagem;
-            }
-
-            //Debug = "Mensagem : " + mensagem;
-            string commando = mensagem.Substring(0, 1);
-
-            bool temComando = Int32.TryParse(commando, out cmd);
-            Console.WriteLine("TEMO COMANDO  " + temComando + " commando ");
-            //Debug = "Tem Commando " + temComando + " cmd : "+ cmd;
-            if (temComando)
-            {
-                switch (cmd)
+                Console.WriteLine("RECEBER MSG!!");
+                onceMessage = true;
+                if (mensagemJson.confirmacao)
                 {
-                    case 0:
-                        MensagemServer = mensagem.Substring(1);
-                        break;
-                    case 1:
-                        iniciarInterface = true;
-                        estadoCliente = gameState.setup;
-                        //Debug = "Tem Commando " + temComando + " cmd : " + cmd;
+                    Console.WriteLine("RECEBER Afirmativa!!");
+                    insercaoShip = true;
+                }
+                else
+                {
+                    insercaoShip = false;
 
-                        break;
                 }
             }
 
+            if (mensagemJson.estadoMensagem == mensagemStateClient.budgetJogador2)
+            {
+                Console.WriteLine("Buget 2!");
+                Jogador2Budget = Jogador2Budget - mensagemJson.budget2;
 
-            //JsonTextReader reader = new JsonTextReader(new StringReader(json));
-            //reader.SupportMultipleContent = false;
+            }
+            if (mensagemJson.estadoMensagem == mensagemStateClient.reinicia)
+            {
+                estadoCliente = gameState.wait;
+                iniciarInterface = true;
+            }
+            if (mensagemJson.estadoMensagem == mensagemStateClient.info)
+            {
 
-
-            //while (true)
+                Debug2 = mensagemJson.getMessageString;
+                iniciarInterface = true;
+            }
+            //string[] messages = mensagem.Split(';');
+            //foreach (string var in messages)
             //{
-            //    if (!reader.Read())
-            //    {
-            //        break;
-            //    }
-
-            //    //ATENÇÃO QUE DAQUI PARA BAIXO SÃO COISAS ESPECIFICAS DO MEU PROJETO,
-            //    //PODES IGNORAR E ADAPTAR AO TEU
-            //    JsonSerializer serializer = new JsonSerializer();
-            //    JObject jsonObj = serializer.Deserialize<JObject>(reader);
-            //    Console.WriteLine(jsonObj.ToString());
-
-            //}
+            //    Console.WriteLine(var);
+            //
 
         }
 
@@ -304,16 +295,9 @@ namespace RedesProjectoMidway
                 }
             }
             //Console.WriteLine("Coordenadas " + new Vector2( cellSize + DrawStartWidth, cellSize + DrawStartHeight));
-            listaTesteNavio = new List<ShipsClient>();
-            ShipsClient testeNavio = new ShipsClient(typeShip.battleship,Content);
-            listaTesteNavio.Add(testeNavio);
-            ShipsClient testeNavio1 = new ShipsClient(typeShip.battleship, Content);
-            listaTesteNavio.Add(testeNavio1);
 
-            testeBoard = new string[2,2]{{"One","Test"},{"Sent","Kill"}};
 
-            
-            
+
             // TODO: use this.Content to load your game content here
         }
 
@@ -327,10 +311,9 @@ namespace RedesProjectoMidway
         {
             if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
                 Exit();
-
             if (iniciarInterface == true)
             {
-                interfacedeJogInterface = new Interface(graphics.GraphicsDevice, Content, screenWidth, screenHeight, 1, cellSize, DrawStartWidth, DrawStartHeight,Jogador1Budget,clientStream);
+                interfacedeJogInterface = new Interface(graphics.GraphicsDevice, Content, screenWidth, screenHeight,playerID, cellSize, DrawStartWidth, DrawStartHeight, Jogador1Budget, clientStream);
                 iniciarInterface = false;
                 once = true;
             }
@@ -342,36 +325,71 @@ namespace RedesProjectoMidway
                 posicaoEmClique = new Vector2(mouseState.X, mouseState.Y);
             }
             timer = timer + 10;
-            if (state.IsKeyDown(Keys.Left) && timer>500 )
+            if (state.IsKeyDown(Keys.Left) && timer > 500)
             {
                 timer = 0;
                 ConnectToServer("localhost", 7777);
-                //Console.WriteLine("Connected!!");
             }
-            if (state.IsKeyDown(Keys.Right) && timer>1000 )
+            if (state.IsKeyDown(Keys.Right) && timer > 1000)
             {
                 timer = 0;
-                //Console.WriteLine("Tentando Enviar!");
-                //SendMessageToServer("HELLO WORLD!!");
-                Mensagem novaMsg = new Mensagem(mensagemStateClient.setup);
+                Mensagem novaMsg = new Mensagem(mensagemStateClient.info);
+                Console.WriteLine(novaMsg.estadoMensagem);
+                novaMsg.inserirMensagem("A mensagem chegou?!");
                 SendMessageToServer(novaMsg);
 
 
             }
-            if (state.IsKeyDown(Keys.Up) && timer > 1000)
-            {
-                // TODO: Add your update logic here
-                Console.WriteLine("Screen Width "+screenWidth+"Screen Height " + screenHeight + "Draw sTart Wdith "+DrawStartWidth + 
-                    " Draw Star Height "+ DrawStartHeight + " End Draw Star Width " + EndDrawWidth +
-                                  " End Draw Star Height " +EndDrawHeight);
-            }
-
 
 
             if (estadoCliente == gameState.setup && once == true)
             {
                 interfacedeJogInterface.Update(mouseState, gameTime);
-                Jogador1Budget = interfacedeJogInterface.updateBudget;
+
+                if (onceMessage && aguardaConfirmacao)
+                {
+                    onceMessage = false;
+                    TimeSinceWaiting = (float)gameTime.ElapsedGameTime.TotalSeconds;
+                    Console.WriteLine("float " + TimeSinceWaiting);
+
+                }
+                else if (aguardaConfirmacao && TimeSinceWaiting!= 0)
+                {
+                    timerForMessageAction += (float)gameTime.ElapsedGameTime.TotalSeconds - TimeSinceWaiting;
+                    Console.WriteLine("float " + timerForMessageAction);
+
+                }
+
+                if (aguardaConfirmacao && insercaoShip == true)
+                {
+                    Console.WriteLine("Insercao de navio");
+                    interfacedeJogInterface.jogadorBudget = interfacedeJogInterface.jogadorBudget -
+                                                            interfacedeJogInterface.GetShipTemp.Cost;
+                    interfacedeJogInterface.AddShipToPlayer(true);
+                    insercaoShip = false;
+                    aguardaConfirmacao = false;
+                    timerForMessageAction = 0f;
+                    Jogador1Budget = interfacedeJogInterface.jogadorBudget;
+
+                }
+                else if (aguardaConfirmacao && timerForMessageAction>5000f)
+                {
+                    Console.WriteLine("Nao chegou a tempo, timerforMessageAction"+timerForMessageAction);
+                    interfacedeJogInterface.AddShipToPlayer(false);
+                    interfacedeJogInterface.RemoveButton(interfacedeJogInterface.getLastButton);
+                    aguardaConfirmacao = false;
+                    timerForMessageAction = 0f;
+                }
+
+
+                if (interfacedeJogInterface.temMensagemaEnviar == true)
+                {
+                    timerForMessageAction = 1000;
+                    aguardaConfirmacao = true;
+                    MensagemShip temporaria = interfacedeJogInterface.getMessagem_A_Enviar;
+                    SendMessageToServer(temporaria);
+                    interfacedeJogInterface.temMensagemaEnviar = false;
+                }
             }
 
 
@@ -399,23 +417,21 @@ namespace RedesProjectoMidway
             {
                 interfacedeJogInterface.Draw(spriteBatch, FontParaTitulos);
             }
-            spriteBatch.DrawString(FontParaTitulos, "Jogador 1 ", new Vector2(15f, 15f),Color.Black);
+            spriteBatch.DrawString(FontParaTitulos, "Jogador 1 ", new Vector2(15f, 15f), Color.Black);
             spriteBatch.DrawString(FontParaTitulos, "Budget: " + Jogador1Budget, new Vector2(15f, 45f), Color.Black);
 
-            spriteBatch.DrawString(FontParaTitulos, "Jogador 2 ", new Vector2(screenWidth-100f, 15f), Color.Black);
-            spriteBatch.DrawString(FontParaTitulos, "Budget: " + Jogador1Budget, new Vector2(screenWidth-100f, 45f), Color.Black);
+            spriteBatch.DrawString(FontParaTitulos, "Jogador 2 ", new Vector2(screenWidth - 100f, 15f), Color.Black);
+            spriteBatch.DrawString(FontParaTitulos, "Budget: " + Jogador2Budget, new Vector2(screenWidth - 100f, 45f), Color.Black);
 
             //spriteBatch.DrawString(FontParaTitulos, "Posicao Rato: " + posicaoEmClique, new Vector2((float)screenWidth/2, 15f), Color.White);
             spriteBatch.DrawString(FontParaTitulos, MensagemServer, new Vector2((float)screenWidth / 2, 15f), Color.White);
             spriteBatch.DrawString(FontParaTitulos, Debug, new Vector2((float)screenWidth / 2, 25f), Color.White);
             spriteBatch.DrawString(FontParaTitulos, Debug2, new Vector2((float)screenWidth / 2, 35f), Color.White);
-
-
+            spriteBatch.DrawString(FontParaTitulos, Debug3, new Vector2((float)screenWidth / 2, 60f), Color.Purple);
 
 
             spriteBatch.End();
             base.Draw(gameTime);
-
 
 
         }

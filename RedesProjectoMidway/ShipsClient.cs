@@ -44,7 +44,6 @@ namespace RedesProjectoMidway
             {
                 tipo = selectShip;
                 pastaContent = content;
-                CoordenadasNavio = new Point[4];
                 preencherShip(tipo);
             }
 

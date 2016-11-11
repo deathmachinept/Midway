@@ -10,6 +10,7 @@ namespace ServerMidway
     public enum playerState
     {
         waiting,
+        setup,
         playing,
         endGame
     }
@@ -19,14 +20,22 @@ namespace ServerMidway
         public int Budget;
         public int Side;
         public TcpClient JogadorTcp;
+        public NetworkStream JogadorStream;
         public playerState Estado;
-        public JogadorServer(TcpClient jogadorClient, int side)
+        public JogadorServer(TcpClient jogadorClient, NetworkStream streamJog)
         {
             this.Estado = playerState.waiting;
             this.JogadorTcp = jogadorClient;
-            this.Side = side;
+            this.JogadorStream = streamJog;
             this.Budget = 500;
         }
+
+        public int playerID
+        {
+            get { return this.Side; }
+            set { this.Side=value; }
+        }
+
 
 
     }

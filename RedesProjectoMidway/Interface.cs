@@ -23,15 +23,16 @@ namespace RedesProjectoMidway
         private Texture2D cruiseIcon;
         private List<ShipButton> NaviosButtons;
         private List<ShipGridButtonPlayer> ListasdeNaviosVisiveis;
-        private List<ShipsClient> Jogador1Navios;
-        private List<ShipsClient> Jogador2Navios;
+        private List<ShipsClient> JogadorNavios;
         private PoolAvailableShip iniciarAvailableShips;
+
+        public ShipsClient TempNavioPorInserir;
 
         private List<ShipsClient> NaviosPoolTemporario;
         private NetworkStream NetworkStreamInterface;
 
         private int ScreenWidth, ScreenHeight;
-        private int IdJogador, jogadorBudget;
+        public int IdJogador, jogadorBudget;
         public int cellSize, drawStartWidth, drawStartHeight;
         private GraphicsDevice graphicsUI;
         private ContentManager pastaRoot;
@@ -39,6 +40,9 @@ namespace RedesProjectoMidway
         public NetworkStream streamCliente;
         private Ships novoShips;
         private MensagemShip novaMensage;
+        public bool temMensagemaEnviar = false;
+        public ShipGridButtonPlayer botaoAguardaConfirmacao;
+        private int[,] PointToCoordenadasShips; 
 
         public Interface(GraphicsDevice graphics, ContentManager content, int screenWidth, int screenHeight, int playerID, int cellDimension, int startDrawWidth, int startDrawHeight, int budget, NetworkStream clientStream)
         {
@@ -48,24 +52,61 @@ namespace RedesProjectoMidway
             this.ScreenHeight = screenHeight;
             this.graphicsUI = graphics;
             this.pastaRoot = content;
-            this.cellSize =cellDimension;
+            this.cellSize = cellDimension;
             this.drawStartWidth = startDrawWidth;
             this.drawStartHeight = startDrawHeight;
             this.jogadorBudget = budget;
             this.streamCliente = clientStream;
             Console.WriteLine(drawStartWidth + " " + startDrawHeight);
             iniciarAvailableShips = new PoolAvailableShip(pastaRoot);
-            
+
             NaviosButtons = new List<ShipButton>(); // botoes de inferface
-            Jogador1Navios = new List<ShipsClient>();
-            Jogador2Navios = new List<ShipsClient>();
+            JogadorNavios = new List<ShipsClient>();
             ListasdeNaviosVisiveis = new List<ShipGridButtonPlayer>();
             InserirBotoes(iniciarAvailableShips.getAvailableShipsList);
 
         }
 
 
+        public MensagemShip getMessagem_A_Enviar
+        {
+            get { return this.novaMensage; }
+        }
 
+        public ShipGridButtonPlayer getLastButton
+        {
+            get { return this.botaoAguardaConfirmacao; }
+        }
+
+        public bool RemoveButton(ShipGridButtonPlayer RemoveTempButton)
+        {
+            foreach (ShipGridButtonPlayer FindButton in ListasdeNaviosVisiveis)
+            {
+                if (FindButton == RemoveTempButton)
+                {
+                    ListasdeNaviosVisiveis.Remove(RemoveTempButton);
+                }
+                return true;
+            }
+            return false;
+        }
+
+
+        public void AddShipToPlayer(bool inserir)
+        {
+            if(inserir)
+            JogadorNavios.Add(TempNavioPorInserir);
+            else
+            {
+                TempNavioPorInserir = null;
+            }
+        }
+
+        public ShipsClient GetShipTemp
+        {
+            get { return this.TempNavioPorInserir; }
+            set { this.TempNavioPorInserir = value; }
+        }
 
         public void InserirBotoes(List<ShipsClient> naviosDisponiveis)
         {
@@ -113,21 +154,6 @@ namespace RedesProjectoMidway
             set { this.NetworkStreamInterface = value; }
         }
 
-        public void SendMessageToServer(Mensagem message)
-        {
-            try
-            {
-                ASCIIEncoding encoder = new ASCIIEncoding();
-                byte[] buffer = message.ByteMessage();
-
-                streamCliente.Write(buffer, 0, buffer.Length);
-                streamCliente.Flush();
-            }
-            catch
-            {
-                //Debug = "Erro no envio de mensagem para o servidor!";
-            }
-        }
 
         public int updateBudget
         {
@@ -137,8 +163,8 @@ namespace RedesProjectoMidway
 
         public Point convertPixelEmCoordenada(int width, int height)
         {
-            Point coordenadasTabuleiro = new Point((int)((width + this.cellSize/2 - this.drawStartWidth)/this.cellSize),
-                                                    (int)((height + this.cellSize/2 - this.drawStartHeight)/this.cellSize));
+            Point coordenadasTabuleiro = new Point((int)((width + this.cellSize / 2 - this.drawStartWidth) / this.cellSize),
+                                                    (int)((height + this.cellSize / 2 - this.drawStartHeight) / this.cellSize));
             return coordenadasTabuleiro;
         }
 
@@ -156,11 +182,11 @@ namespace RedesProjectoMidway
             //origem no centro
         }
 
-        public Point convertCoordenadaEmPixel(Point coordenada,int size)
+        public Point convertCoordenadaEmPixel(Point coordenada, int size)
         {
 
-            Point PixeisCoordenadas = new Point((int)((coordenada.X * cellSize + ((this.cellSize / 2)*size)) + drawStartWidth), (int)(coordenada.Y * this.cellSize + ((this.cellSize / 2))) + drawStartHeight);
-            Console.WriteLine("Coordenadas Pixeis "+PixeisCoordenadas);
+            Point PixeisCoordenadas = new Point((int)((coordenada.X * cellSize + ((this.cellSize / 2) * size)) + drawStartWidth), (int)(coordenada.Y * this.cellSize + ((this.cellSize / 2))) + drawStartHeight);
+            Console.WriteLine("Coordenadas Pixeis " + PixeisCoordenadas);
             return PixeisCoordenadas;
             //origem no centro
         }
@@ -180,120 +206,97 @@ namespace RedesProjectoMidway
                         {
                             if (jogadorBudget >= findType.Cost)
                             {
-                                if (IdJogador == 1)
-                                {
                                     if (mouseState.X > drawStartWidth || mouseState.Y > drawStartHeight)
                                     {
-                                        if (mouseState.X < drawStartWidth*20 || mouseState.Y < drawStartHeight*11)
+                                        if (mouseState.X < drawStartWidth * 20 || mouseState.Y < drawStartHeight * 11)
                                         {
-                                            int tamanhoShip = findType.getSize;
+                                            TempNavioPorInserir = findType;
+                                            int tamanhoShip = TempNavioPorInserir.getSize;
                                             int offsetX = mouseState.X - btn.obterRectangle.X;
                                             int offsetY = mouseState.Y - btn.obterRectangle.Y;
-
-                                            jogadorBudget = jogadorBudget - findType.Cost;
+                                            PointToCoordenadasShips = new int[tamanhoShip,2];
                                             Point tempoPointToFillArray = convertPixelEmCoordenada(btn.obterRectangle.X, btn.obterRectangle.Y);
-                                            for (int i = 0; i < findType.getSize; i++)
-                                            {
-                                                findType.GetSetCoordenadas[i] = convertPixelEmCoordenada(btn.obterRectangle.X+i, btn.obterRectangle.Y);
-                                            }
-                                            Point test = convertCoordenadaEmPixel(findType.GetSetCoordenadas[0],findType.getSize);
+                                            Point[] inserirCoordenadasShipCliente = new Point[tamanhoShip];
 
-                                            Console.WriteLine("Reconversao "+convertPixelEmCoordenada(btn.obterRectangle.X, btn.obterRectangle.Y) );
+
+                                            Console.WriteLine("TempPointFill "+ tempoPointToFillArray + " " + TempNavioPorInserir.getSize );
+                                            for (int i = 0; i < TempNavioPorInserir.getSize; i++)
+                                            {
+                                                inserirCoordenadasShipCliente[i] = new Point(tempoPointToFillArray.X + i, tempoPointToFillArray.Y);
+                                                PointToCoordenadasShips[i, 0] = (int)tempoPointToFillArray.X + i;
+                                                PointToCoordenadasShips[i, 1] = (int)tempoPointToFillArray.Y;
+
+                                            }
+
+                                            TempNavioPorInserir.GetSetCoordenadas = inserirCoordenadasShipCliente;
+
+                                            Point test = convertCoordenadaEmPixel(TempNavioPorInserir.GetSetCoordenadas[0], TempNavioPorInserir.getSize);
+
+                                            Console.WriteLine("Reconversao " + convertPixelEmCoordenada(btn.obterRectangle.X, btn.obterRectangle.Y));
 
                                             ShipGridButtonPlayer tempAddButton = new ShipGridButtonPlayer(graphicsUI,
-                                            findType.getTextureShip,
-                                            new Vector2(test.X,test.Y),
+                                            TempNavioPorInserir.getTextureShip,
+                                            new Vector2(test.X, test.Y),
                                             new Vector2(0.25f, 0.25f), tipo, 1);
 
-                                            //tempAddButton.obterRectangle = new Rectangle(test.X, test.Y, 
-                                            //    (int)(findType.getTextureShip.Width*0.25f),  (int)(findType.getTextureShip.Height));
-                                            Console.WriteLine("Coordenadas Inseridas " + findType.GetSetCoordenadas[0]);
+                                            Console.WriteLine("POINT Coordenadas Inseridas " + TempNavioPorInserir.GetSetCoordenadas[0] + " pos 1 " + TempNavioPorInserir.GetSetCoordenadas[1]);
+                                            Console.WriteLine("Coordenadas Inseridas " + PointToCoordenadasShips[0, 0] + " pos 1 " + PointToCoordenadasShips[1, 0]);
 
-                                            Jogador1Navios.Add(findType);
+                                            
+                                            botaoAguardaConfirmacao = tempAddButton;
                                             int index = (int)tempAddButton.getShipType;
-                                            Common.typeShip tipoShipCommon;
-                                    
+                                            Common.typeShips tipoShipCommon;
+
                                             switch (index)
                                             {
                                                 case 0:
-                                                    tipoShipCommon = Common.typeShip.destroyer;
+                                                    tipoShipCommon = Common.typeShips.destroyer;
                                                     novoShips = new Ships(tipoShipCommon);
+                                                    novoShips.GetSetCoordenadas = PointToCoordenadasShips;
+                                                    Console.WriteLine("BUG Coordenadas Point " + PointToCoordenadasShips[0, 0] + " " + PointToCoordenadasShips[0, 1]);
                                                     novaMensage = new MensagemShip(mensagemStateClient.ship, novoShips);
-                                                    Console.WriteLine("Devia ter enviado a mensagem");
-                                                    SendMessageToServer(novaMensage);
-
+                                                    //novaMensage.CoordenadaX = PointToCoordenadasShips[0, 0];
+                                                    //novaMensage.CoordenadaYs = PointToCoordenadasShips[0, 1];
+                                                    temMensagemaEnviar = true;
                                                     break;
                                                 case 1:
-                                                    tipoShipCommon = Common.typeShip.cruiser;
+                                                    tipoShipCommon = Common.typeShips.cruiser;
                                                     novoShips = new Ships(tipoShipCommon);
+                                                    novoShips.GetSetCoordenadas = PointToCoordenadasShips;
                                                     novaMensage = new MensagemShip(mensagemStateClient.ship, novoShips);
-                                                    SendMessageToServer(novaMensage);
+                                                    //novaMensage.CoordenadaX = PointToCoordenadasShips[0, 0];
+                                                    //novaMensage.CoordenadaY = PointToCoordenadasShips[0, 1];
+
+                                                    temMensagemaEnviar = true;
                                                     break;
                                                 case 2:
-                                                    tipoShipCommon = Common.typeShip.battleship;
+                                                    tipoShipCommon = Common.typeShips.battleship;
                                                     novoShips = new Ships(tipoShipCommon);
+                                                    novoShips.GetSetCoordenadas = PointToCoordenadasShips;
                                                     novaMensage = new MensagemShip(mensagemStateClient.ship, novoShips);
-                                                    SendMessageToServer(novaMensage);
+                                                    //novaMensage.CoordenadaX = PointToCoordenadasShips[0, 0];
+                                                    //novaMensage.CoordenadaY = PointToCoordenadasShips[0, 1];
+                                                    temMensagemaEnviar = true;
+
                                                     break;
                                                 case 3:
-                                                    tipoShipCommon = Common.typeShip.carrier;
+                                                    tipoShipCommon = Common.typeShips.carrier;
                                                     novoShips = new Ships(tipoShipCommon);
+                                                    novoShips.GetSetCoordenadas = PointToCoordenadasShips;
+
                                                     novaMensage = new MensagemShip(mensagemStateClient.ship, novoShips);
-                                                    SendMessageToServer(novaMensage);
+                                                    //novaMensage.CoordenadaX = PointToCoordenadasShips[0, 0];
+                                                    //novaMensage.CoordenadaY = PointToCoordenadasShips[0, 1];
+                                                    temMensagemaEnviar = true;
+
                                                     break;
                                             }
                                             ListasdeNaviosVisiveis.Add(tempAddButton);
                                             btn.devoGerarNovoButton = false;
-                                            //Console.WriteLine("navio " + findType.GetSetCoordenadas);
+
                                         }
                                         // e maior que a primeira celula
                                     }
-
-                                }
-                                else
-                                {
-                                    Jogador2Navios.Add(findType);
-                                    ShipGridButtonPlayer tempAddButton = new ShipGridButtonPlayer(graphicsUI,
-                                        findType.getTextureShip,
-                                        new Vector2(btn.obterRectangle.X, btn.obterRectangle.Y),
-                                        new Vector2(0.25f, 0.25f), tipo, 2); // get rectangle button position
-                                    ListasdeNaviosVisiveis.Add(tempAddButton);
-
-                                    int index = (int)tempAddButton.getShipType;
-                                    Common.typeShip tipoShipCommon;
-                                    Ships novoShips;
-                                    MensagemShip novaMensage;
-                                    
-                                    switch (index)
-                                    {
-                                        case 0:
-                                            tipoShipCommon = Common.typeShip.destroyer;
-                                            novoShips = new Ships(tipoShipCommon);
-                                            novaMensage = new MensagemShip(mensagemStateClient.ship, novoShips);
-                                            SendMessageToServer(novaMensage);
-                                            break;
-                                        case 1:
-                                            tipoShipCommon = Common.typeShip.cruiser;
-                                            novoShips = new Ships(tipoShipCommon);
-                                            novaMensage = new MensagemShip(mensagemStateClient.ship, novoShips);
-                                            SendMessageToServer(novaMensage);
-                                            break;
-                                        case 2:
-                                            tipoShipCommon = Common.typeShip.battleship;
-                                            novoShips = new Ships(tipoShipCommon);
-                                            novaMensage = new MensagemShip(mensagemStateClient.ship, novoShips);
-                                            SendMessageToServer(novaMensage);
-                                            break;
-                                        case 3:
-                                            tipoShipCommon = Common.typeShip.carrier;
-                                            novoShips = new Ships(tipoShipCommon);
-                                            novaMensage = new MensagemShip(mensagemStateClient.ship, novoShips);
-                                            SendMessageToServer(novaMensage);
-                                            break;
-                                    }
-                                    btn.devoGerarNovoButton = false;
-
-                                }
                             }
                         }
                     }
@@ -307,41 +310,38 @@ namespace RedesProjectoMidway
                 {
                     //se houver movimento em botão, buscar o rectangulo anterior antes do movimento do rato
                     //converter a posicao dos pixeis em coordenadas e procurar as coordenadas do navio
-                    Console.WriteLine("Old Rectangulo : "+btnGrid.GetOldRectangle.X + btnGrid.GetOldRectangle.Y);
+                    Console.WriteLine("Old Rectangulo : " + btnGrid.GetOldRectangle.X + btnGrid.GetOldRectangle.Y);
                     Console.WriteLine("Novo Rectangulo : " + btnGrid.GetOldRectangle.X + btnGrid.GetOldRectangle.Y);
 
                     Point tempPoint = convertPixelEmCoordenadaTopLeft(btnGrid.GetOldRectangle.X, btnGrid.GetOldRectangle.Y);
-                    Console.WriteLine("Houve Movimento Coordenadas antigas " + tempPoint.X +" , "+ tempPoint.Y);
-                    foreach (ShipsClient var in Jogador1Navios)
+                    Console.WriteLine("Houve Movimento Coordenadas antigas " + tempPoint.X + " , " + tempPoint.Y);
+                    foreach (ShipsClient var in JogadorNavios)
                     {
                         //Corre todos os navios do jogador
 
                         //para cada navio ver as suas coordenadas 
                         procurarCoordenadas = var.GetSetCoordenadas;
-                            for (int i = 0; i < var.getSize; i++)
+                        for (int i = 0; i < var.getSize; i++)
+                        {
+                            //
+                            if (procurarCoordenadas[i] == tempPoint)
                             {
-                                //
-                                if (procurarCoordenadas[i] == tempPoint)
+                                Point novaCoordenada = convertPixelEmCoordenada(btnGrid.obterRectangle.X, btnGrid.obterRectangle.Y);
+                                for (int l = 0; l < var.getSize; l++)
                                 {
-                                    Point novaCoordenada = convertPixelEmCoordenada(btnGrid.obterRectangle.X,btnGrid.obterRectangle.Y);
-                                    for (int l = 0; l < var.getSize; l++)
-                                    {
 
-                                        var.GetSetCoordenadas[l] = new Point(novaCoordenada.X+l, novaCoordenada.Y);
-                                    }
-                                    Point novoRectangulo = convertCoordenadaEmPixel(novaCoordenada, var.getSize);
-                                    btnGrid.novaEscalaRectangulo(novoRectangulo,new Vector2(0.25f,0.25f));
-                                    btnGrid.novoMovimento = false;
-                                    break;
+                                    var.GetSetCoordenadas[l] = new Point(novaCoordenada.X + l, novaCoordenada.Y);
                                 }
+                                Point novoRectangulo = convertCoordenadaEmPixel(novaCoordenada, var.getSize);
+                                btnGrid.novaEscalaRectangulo(novoRectangulo, new Vector2(0.25f, 0.25f));
+                                btnGrid.novoMovimento = false;
+                                break;
                             }
-                      }
-                  }
+                        }
+                    }
                 }
-        
+            }
         }
-
-
 
 
         public void Draw(SpriteBatch spritebatch, SpriteFont fonte)

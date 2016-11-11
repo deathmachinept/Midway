@@ -20,7 +20,6 @@ namespace ServerMidway
     class NovoJogo
     {
 
-        private char[,] board;
         private string[,] boardPlayers = new string[20,11];
         private int Jogador1Budget, Jogador2Budget;
         private List<Ships> player1ShipList = new List<Ships>();
@@ -37,33 +36,69 @@ namespace ServerMidway
             IniciarTabuleiro();
         }
 
+        public JogadorServer getJogador1
+        {
+            get { return this.jogador1; }
+        }
+
+        public JogadorServer getJogador2
+        {
+            get { return this.jogador2; }
+        }
+
+        public JogadorServer retornaJogadorInverso(TcpClient jogadorActual)
+        {
+            if(jogador1.JogadorTcp == jogadorActual)
+            {
+                return jogador2;
+            }
+            else if(jogador2.JogadorTcp == jogadorActual)
+            {
+               return jogador1;
+            }
+
+            return null;
+        }
+
+
+        public string[,] GetBoardPlayers
+        {
+            get { return this.boardPlayers; }
+            set {  this.boardPlayers = value; }
+        }
+
         void IniciarTabuleiro()
         {
             for (int x = 0; x < 20; x++)
             {
-                for (int y = 0; x < 11; x++)
+                for (int y = 0; y < 11; y++)
                 {
                     boardPlayers[x, y] = " ";
+
                 }
             }
         }
 
         //DD destroyer CR Cruiser CA Carrier BS Battleship
-        bool checkCoordinates(int[][] coordenada, int size)
+        public bool checkCoordinates(int[,] coordenada, int size)
         {
-            int[][] coordenadaArray = coordenada;
+            int[,] coordenadaArray = coordenada;
             int coordenadaCheckX;
             int coordenadaCheckY;
             for (int i = 0; i < size; i++)
             {
-                coordenadaCheckX = coordenadaArray[i][0];
-                coordenadaCheckY = coordenadaArray[i][1];
+
+                coordenadaCheckX = coordenadaArray[i,0];
+                coordenadaCheckY = coordenadaArray[i,1];
                 if (boardPlayers[coordenadaCheckX, coordenadaCheckY] != " ")
                 {
+                    Console.WriteLine("Tem diferente de espaco " + boardPlayers[coordenadaCheckX, coordenadaCheckY]+" ");
                     return false;
                 }
                 else if( i == size-1 )
                 {
+                    Console.WriteLine("Nao tem nada " + size);
+
                     return true;
                 }
 
@@ -72,77 +107,90 @@ namespace ServerMidway
         }
 
 
-        bool AddShipToPlayerList(Ships insertShip)
+        public bool AddShipToPlayerList(Ships insertShip)
         {
             int contarSize = insertShip.getSize;
-            typeShip tipoNavio = insertShip.getID;
-            int[][] coordenadaShip = insertShip.GetSetCoordenadas;
+            typeShips tipoNavio = insertShip.getID;
+            int[,] coordenadaShip = insertShip.GetSetCoordenadas;
             int coordenadaX;
             int coordenadaY;
 
             if (checkCoordinates(coordenadaShip, contarSize))
             {
-                if (tipoNavio == typeShip.destroyer)
+                Console.WriteLine("Check coordinates True");
+                if (tipoNavio == typeShips.destroyer)
                 {
+                    Console.WriteLine("destroyer");
                     for (int i = 0; i < contarSize; i++)
                     {
-                        coordenadaX = coordenadaShip[i][0];
-                        coordenadaY = coordenadaShip[i][1];
+                        coordenadaX = coordenadaShip[i,0];
+                        coordenadaY = coordenadaShip[i,1];
                         boardPlayers[coordenadaX, coordenadaY] = "DD";
+                        Console.WriteLine(boardPlayers[coordenadaX, coordenadaY]);
+
                         return true;
                     }
                 }
-                if (tipoNavio == typeShip.battleship)
+                if (tipoNavio == typeShips.battleship)
                 {
                     for (int i = 0; i < contarSize; i++)
                     {
-                        coordenadaX = coordenadaShip[i][0];
-                        coordenadaY = coordenadaShip[i][1];
+                        coordenadaX = coordenadaShip[i,0];
+                        coordenadaY = coordenadaShip[i,1];
                         boardPlayers[coordenadaX, coordenadaY] = "BS";
                         return true;
                     }
                 }
-                if (tipoNavio == typeShip.carrier)
+                if (tipoNavio == typeShips.carrier)
                 {
                     for (int i = 0; i < contarSize; i++)
                     {
-                        coordenadaX = coordenadaShip[i][0];
-                        coordenadaY = coordenadaShip[i][1];
+                        coordenadaX = coordenadaShip[i,0];
+                        coordenadaY = coordenadaShip[i,1];
                         boardPlayers[coordenadaX, coordenadaY] = "CA";
                         return true;
 
                     }
                 }
-                if (tipoNavio == typeShip.cruiser)
+                if (tipoNavio == typeShips.cruiser)
                 {
                     for (int i = 0; i < contarSize; i++)
                     {
-                        coordenadaX = coordenadaShip[i][0];
-                        coordenadaY = coordenadaShip[i][1];
+                        coordenadaX = coordenadaShip[i,0];
+                        coordenadaY = coordenadaShip[i,1];
                         boardPlayers[coordenadaX, coordenadaY] = "CR";
                     }
                     return true;
                 }
             }
+            Console.WriteLine("Check coordinates False");
             return false;
         }
 
-        bool AddShip(typeShip tipoNavio, int playerID, Ships Ship)
+        public bool AddShip(int playerID, Ships ship)
         {
+            Console.WriteLine("Player ID " + playerID + " " + ship.getSize);
+            for (int i = 0; i < ship.getSize; i++)
+            {
+                Console.WriteLine("Coordenada X " + ship.GetSetCoordenadas[i, 0]);
+                Console.WriteLine("Coordenada Y " + ship.GetSetCoordenadas[i, 1]);
+
+            }
+
             if (playerID == 1)
             {
-                if (AddShipToPlayerList(Ship)) //true
+                if (AddShipToPlayerList(ship)) //true
                 {
-                    Ships tempShip = new Ships(tipoNavio);
+                    Ships tempShip = new Ships(ship.getID);
                     player1ShipList.Add(tempShip);
                     return true;
                 }
 
             }else if (playerID == 2)
             {
-                if (AddShipToPlayerList(Ship)) //true
+                if (AddShipToPlayerList(ship)) //true
                 {
-                    Ships tempShip = new Ships(tipoNavio);
+                    Ships tempShip = new Ships(ship.getID);
                     player2ShipList.Add(tempShip);
                     return true;
                 }
@@ -152,9 +200,9 @@ namespace ServerMidway
             return false;
         }
 
-        Ships FindShipOnPlayer(int findX, int findY, out int playerID)
+        public Ships FindShipOnPlayer(int findX, int findY, out int playerID)
         {
-            int[][] GetCoordenadas;
+            int[,] GetCoordenadas;
             int CoordenadaX, CoordenadaY;
             int size;
 
@@ -164,8 +212,8 @@ namespace ServerMidway
                 GetCoordenadas = procurarShip.GetSetCoordenadas;
                 for (int i = 0; i < size; i++)
                 {
-                    CoordenadaX = GetCoordenadas[i][0];
-                    CoordenadaY = GetCoordenadas[i][1];
+                    CoordenadaX = GetCoordenadas[i,0];
+                    CoordenadaY = GetCoordenadas[i,1];
                     if (CoordenadaX == findX && CoordenadaY == findY)
                     { // retornar navio
                         playerID = 1;
@@ -179,8 +227,8 @@ namespace ServerMidway
                 GetCoordenadas = procurarShip.GetSetCoordenadas;
                 for (int i = 0; i < size; i++)
                 {
-                    CoordenadaX = GetCoordenadas[i][0];
-                    CoordenadaY = GetCoordenadas[i][1];
+                    CoordenadaX = GetCoordenadas[i,0];
+                    CoordenadaY = GetCoordenadas[i,1];
                     if (CoordenadaX == findX && CoordenadaY == findY)
                     { // retornar navio
                         playerID = 2;
@@ -192,13 +240,16 @@ namespace ServerMidway
             return null;
         }
 
-        bool battleTiro(int x, int y, int size,int damage)
+        public bool battleTiro(int x, int y, int damage, out bool navioEstaDestruido)
         {
             string type;
             Ships searchResultShips;
-            int[][] CoordenadasSearch;
+            int[,] CoordenadasSearch;
+            int size;
             int HP;
             int plyID;
+            damage = 0;
+            navioEstaDestruido = false;
             if(boardPlayers[x, y] != " ")
             {
                 type = boardPlayers[x, y];
@@ -206,11 +257,14 @@ namespace ServerMidway
                 if (searchResultShips == null)
                 {
                     return false;
+                    
                 }
                 else
                 {
+                    size = searchResultShips.getSize;
                     HP = searchResultShips.getHP;
                     HP = HP - damage;
+
                     if (HP <= 0)
                     {
                         if (plyID == 1)
@@ -218,7 +272,7 @@ namespace ServerMidway
                             CoordenadasSearch = searchResultShips.GetSetCoordenadas;
                             for (int l = 0; l < size; l++)
                             {
-                                boardPlayers[CoordenadasSearch[l][0], CoordenadasSearch[l][1]] = " ";
+                                boardPlayers[CoordenadasSearch[l,0], CoordenadasSearch[l,1]] = " ";
                             }
                             player1ShipList.Remove(searchResultShips);
                         }else if (plyID == 2)
@@ -226,17 +280,17 @@ namespace ServerMidway
                             CoordenadasSearch = searchResultShips.GetSetCoordenadas;
                             for (int l = 0; l < size; l++) //corre as celulas associadas ao navio e eliminda do board
                             {
-                                boardPlayers[CoordenadasSearch[l][0], CoordenadasSearch[l][1]] = " ";
+                                boardPlayers[CoordenadasSearch[l,0], CoordenadasSearch[l,1]] = " ";
                             }
                             player2ShipList.Remove(searchResultShips);
                         }
-
+                        navioEstaDestruido = true;
                     }
                     else
                     {
                         searchResultShips.getHP = HP;
+
                     }
-                    
                     return true;
                 }
 

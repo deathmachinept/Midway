@@ -49,7 +49,7 @@ namespace ServerMidway
         private Ships tempShip;
         private gameState estado;
         private int contar = 0;
-        private bool jogadorDisconnect, gerado;
+        private bool jogadorDisconnect, gerado, clienteJaExiste = false;
         private TcpClient jogadorDisconnectado;
         private Random seed;
         private int GuardarRandomNum;
@@ -73,11 +73,39 @@ namespace ServerMidway
             shipPlayerId2 = 200;
             estado = gameState.setup;
 
-            iniciarServidor();
+            IniciarServidor();
             Console.ReadLine();
         }
 
-        void iniciarServidor()
+        NovoJogo FindGame(TcpClient findPlayerInGame)
+        {
+            foreach (NovoJogo Jogo in LobbyJogos)
+            {
+                if (Jogo.getJogador1.JogadorTcp == findPlayerInGame ||Jogo.getJogador2.JogadorTcp == findPlayerInGame )
+                {
+                    return Jogo;
+                }
+            }
+            return null;
+        }
+
+        JogadorServer FindJogadorWithTcp(TcpClient findPlayerInGame)
+        {
+            foreach (NovoJogo Jogo in LobbyJogos)
+            {
+                if (Jogo.getJogador1.JogadorTcp == findPlayerInGame )
+                {
+                    return Jogo.getJogador1;
+                }
+                if (Jogo.getJogador2.JogadorTcp == findPlayerInGame)
+                {
+                    return Jogo.getJogador2;
+                }
+            }
+            return null;
+        }
+
+        void IniciarServidor()
         {
             tcpListener = new TcpListener(IPAddress.Any, port);
             Console.WriteLine("Porta :" + port + "Começa thread");
@@ -140,30 +168,26 @@ namespace ServerMidway
                 TcpClient client = new TcpClient();
                 client = this.tcpListener.AcceptTcpClient();
                 JogadorServer tempJogador;
-                NetworkStream clientStream = client.GetStream();
-
-                #region gerar Equipa Aleatoria
-
-                if (!gerado)
+                foreach (JogadorServer CheckExistencia in listaJogadoresNoServer)
                 {
-                    GuardarRandomNum = seed.Next(0, 1);
-                    tempJogador = new JogadorServer(client, GuardarRandomNum);
-                    gerado = true;
-                }
-                else
-                {
-                    if (GuardarRandomNum == 1)
+                    if (CheckExistencia.JogadorTcp == client)
                     {
-                        tempJogador = new JogadorServer(client, 0);
+                        tempJogador = CheckExistencia;
+                        clienteJaExiste = true;
                     }
                     else
                     {
-                        tempJogador = new JogadorServer(client, 1);
-                    }
-                    gerado = false;
+                        clienteJaExiste = false;
+                    };
                 }
+                if (clienteJaExiste == false)
+                {
+                    
+                }
+                NetworkStream clientStream = client.GetStream();
 
-                #endregion
+                
+                tempJogador = new JogadorServer(client, clientStream);
 
 
                 listaJogadoresNoServer.Add(tempJogador);
@@ -172,15 +196,34 @@ namespace ServerMidway
 
                 if (obterJogador != null)
                 {
+
+                    GuardarRandomNum = seed.Next(1, 2);
+
+                    if (GuardarRandomNum == 1)
+                    {
+                        tempJogador.playerID =  2;
+                        obterJogador.playerID = 1;
+                    }
+                    else
+                    {
+                        tempJogador.playerID = 1;
+                        obterJogador.playerID = 2;
+                    }
+
                     obterJogador.Estado = playerState.playing;
                     tempJogador.Estado = playerState.playing;
+
                     NovoJogo tempJogo = new NovoJogo(obterJogador, tempJogador);
                     LobbyJogos.Add(tempJogo);
-                    Enviar_mensagem("0 Inicio de Jogo ! ;", obterJogador.JogadorTcp);
-                    Enviar_mensagem("0 Inicio de Jogo ! ;", tempJogador.JogadorTcp);
-                    Enviar_mensagem("1 ;", tempJogador.JogadorTcp);
-                    Enviar_mensagem("1 ;", obterJogador.JogadorTcp);
-
+                    //Enviar_mensagem("0 Inicio de Jogo ! ;", obterJogador.JogadorTcp);
+                    //Enviar_mensagem("0 Inicio de Jogo ! ;", tempJogador.JogadorTcp);
+                    //Enviar_mensagem("1 ;", tempJogador.JogadorTcp);
+                    //Enviar_mensagem("1 ;", obterJogador.JogadorTcp);
+                    Mensagem mensagemInicio = new Mensagem(mensagemStateClient.id);
+                    mensagemInicio.inserirMensagem(obterJogador.playerID.ToString());
+                    Enviar_mensagemJson(mensagemInicio, obterJogador.JogadorStream);
+                    mensagemInicio.inserirMensagem(tempJogador.playerID.ToString());
+                    Enviar_mensagemJson(mensagemInicio, tempJogador.JogadorStream);
                     Console.WriteLine("Jogo Iniciado!!");
 
                     serverFull = true;
@@ -190,11 +233,15 @@ namespace ServerMidway
                     Console.WriteLine("Jogador Connectado! ;" + tempJogador.JogadorTcp.Client.RemoteEndPoint.ToString());
                     if (serverFull)
                     {
-                        Enviar_mensagem("0 Jogo já em execução! foi inserido na filha! ;", tempJogador.JogadorTcp);
+                        Mensagem mensagem = new Mensagem(mensagemStateClient.info);
+                        mensagem.mensagem = "Jogo já em execução! foi inserido na filha! ;"+ tempJogador.JogadorTcp;
+                        Enviar_mensagemJson(mensagem, tempJogador.JogadorStream);
                     }
                     else
                     {
-                        Enviar_mensagem("0 A espera de jogadores... ;", tempJogador.JogadorTcp);
+                        Mensagem mensagem = new Mensagem(mensagemStateClient.info);
+                        mensagem.mensagem = "A espera de jogadores... " + tempJogador.JogadorTcp;
+                        Enviar_mensagemJson(mensagem, tempJogador.JogadorStream);
                     }
                 }
 
@@ -208,19 +255,44 @@ namespace ServerMidway
 
         }
 
+        void ReiniciarJogoAposDisconnectDeUmJogador(TcpClient jogadorDisconnect, NovoJogo jogoInterrupido, JogadorServer jogadorAindaEmJogo)
+        {
+
+            //Remove Jogador da lista de jogadores connectados ao servidador
+            listaJogadoresNoServer.Remove(FindJogadorWithTcp(jogadorDisconnect));
+            foreach (JogadorServer jogador in listaJogadoresNoServer)
+            {
+                if (jogador == jogadorAindaEmJogo)
+                {
+
+                    jogador.Estado = playerState.waiting;
+                    jogador.playerID = seed.Next(1, 2);
+                }
+            }
+
+            // Buscar o monogame do jogador ainda em jogo por no estado waiting
+            if (LobbyJogos.Count > 1)
+            {
+                foreach (NovoJogo jogo in LobbyJogos)
+                {
+                    if (jogo == jogoInterrupido)
+                    {
+                        LobbyJogos.Remove(jogoInterrupido);
+                    }
+                }
+            }
+
+
+        }
+
         private void HandleClientComm(object client)
         {
-            
-
             Tuple<TcpClient, NetworkStream> clientMessagem = (Tuple<TcpClient, NetworkStream>) client;
             TcpClient tcpClient = clientMessagem.Item1;
             NetworkStream clientStream = clientMessagem.Item2;
 
             byte[] message = new byte[4096];
             
-
-
-
             int bytesRead;
 
             while (true)
@@ -234,20 +306,29 @@ namespace ServerMidway
                 }
                 catch
                 {
-                    Console.WriteLine("Disconnected!");
+                    Console.WriteLine("Disconnected! Erro na stream do jogador" );
                     jogadorDisconnect = true;
                     jogadorDisconnectado = tcpClient;
+                    NovoJogo jogoInterrupido = FindGame(jogadorDisconnectado);
+                    JogadorServer JogadorAindaEmJogo = jogoInterrupido.retornaJogadorInverso(jogadorDisconnectado);
 
-                    //a socket error has occured
+                    Enviar_mensagemJson(new Mensagem(mensagemStateClient.reinicia), JogadorAindaEmJogo.JogadorStream);
+                    ReiniciarJogoAposDisconnectDeUmJogador(jogadorDisconnectado, jogoInterrupido, JogadorAindaEmJogo);
 
                     break;
                 }
 
                 if (bytesRead == 0)
                 {
-                    Console.WriteLine("Disconnected!");
+                    Console.WriteLine("Disconnected! Nao foram enviados bytes para ler");
                     jogadorDisconnect = true;
                     jogadorDisconnectado = tcpClient;
+                    NovoJogo jogoInterrupido = FindGame(jogadorDisconnectado);
+                    JogadorServer JogadorAindaEmJogo = jogoInterrupido.retornaJogadorInverso(jogadorDisconnectado);
+
+
+                    Enviar_mensagemJson(new Mensagem(mensagemStateClient.reinicia), JogadorAindaEmJogo.JogadorStream);
+                    ReiniciarJogoAposDisconnectDeUmJogador(jogadorDisconnectado, jogoInterrupido, JogadorAindaEmJogo);
                     //the client has disconnected from the server
                     break;
                 }
@@ -256,21 +337,66 @@ namespace ServerMidway
                 ASCIIEncoding encoder = new ASCIIEncoding();
 
                 string mensagem = encoder.GetString(message, 0, bytesRead);
-
+                string mensagem2 = mensagem;
+                MensagemShip jsonObjShip;
                 Mensagem jsonObj = JsonConvert.DeserializeObject<Mensagem>(mensagem);
-
-                Console.WriteLine("Teste!");
-
                 if (jsonObj.estadoMensagem == mensagemStateClient.ship)
                 {
-                    MensagemShip jsonObjShip = JsonConvert.DeserializeObject<MensagemShip>(mensagem);
+                    jsonObjShip = JsonConvert.DeserializeObject<MensagemShip>(mensagem2);
 
-                    Ships ReadNavioMessage = jsonObjShip.GetShipObject;
-                    Console.WriteLine("Health " + ReadNavioMessage.getHP);
-                    Console.WriteLine("Health " + ReadNavioMessage.getSize);
+                    Ships ReadNavioMessage = jsonObjShip.Navio;
+
+                    for (int i = 0; i < ReadNavioMessage.getSize; i++)
+                    {
+                        Console.WriteLine("Coordenada X " + ReadNavioMessage.GetSetCoordenadas[i, 0]);
+                        Console.WriteLine("Coordenada Y " + ReadNavioMessage.GetSetCoordenadas[i, 1]);
+
+                    }
+
+                    NovoJogo jogo = FindGame(tcpClient);
+                    Mensagem confirmacao = new Mensagem(mensagemStateClient.confirmacao);
+                    if (jogo.AddShip(FindJogadorWithTcp(tcpClient).playerID, ReadNavioMessage))
+                    {
+                        Console.WriteLine("Enviar Mensagem!");
+                        confirmacao.confirmacao = true;
+                        Enviar_mensagemJson(confirmacao, clientStream);
+
+  
+                        Mensagem MensagemInfoOponent = new Mensagem(mensagemStateClient.budgetJogador2);
+                        MensagemInfoOponent.budget2 = ReadNavioMessage.Cost;
+                        JogadorServer oponente = jogo.retornaJogadorInverso(tcpClient);
+                        Console.WriteLine("Enviar Mensagem budget!");
+                        Enviar_mensagemJson(MensagemInfoOponent,oponente.JogadorStream);
+                    }
+                    else
+                    {
+                        Console.WriteLine("Falha no add Mensagem!");
+
+                        confirmacao.confirmacao = false;
+                        Enviar_mensagemJson(confirmacao, clientStream);
+                    };
+                }
+
+                else if (jsonObj.estadoMensagem == mensagemStateClient.info)
+                {
+                    Console.WriteLine("Entrou");
+                    Console.WriteLine(jsonObj.getMessageString);
+                }
+
+
+                else if (jsonObj.estadoMensagem == mensagemStateClient.battle)
+                {
+                    bool navioDestruido;
+                    NovoJogo jogo = FindGame(tcpClient);
+
+                    //if (jogo.battleTiro(jsonObj.CoordenadaX, jsonObj.CoordenadaY, out navioDestruido))
+                    //{
+                    //    navioDestruido = false;
+                    //}
 
                 }
                 
+
                 //JObject jsonObj = JsonConvert.DeserializeObject<JObject>(mensagem);
 
                 //Enviar_mensagem();

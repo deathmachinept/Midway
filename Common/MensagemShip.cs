@@ -8,7 +8,7 @@ namespace Common
 {
     public class MensagemShip:Mensagem
     {
-        private Ships Navio;
+        public Ships Navio;
         public MensagemShip(mensagemStateClient mensagemState, Ships NovoNavio)
             : base(mensagemState)
         {
