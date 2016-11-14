@@ -240,7 +240,7 @@ namespace ServerMidway
                     }
                     MensagemTuple = new Tuple<TcpClient, NetworkStream>(client, clientStream);
                     //with connected client
-                    clientThread = new Thread(new ParameterizedThreadStart(HandleClientComm));
+                    clientThread = new Thread(new ParameterizedThreadStart(CommunicaodeJogador));
                     clientThread.Start(MensagemTuple);
                 }
                 #endregion 
@@ -284,7 +284,7 @@ namespace ServerMidway
                         if (serverFull)
                         {
                             Mensagem mensagem = new Mensagem(mensagemStateClient.info);
-                            mensagem.mensagem = "Jogo já em execução! foi inserido na filha! ;" + tempJogador.JogadorTcp;
+                            mensagem.mensagem = "Jogo já em execução! foi inserido na filha! ;" + tempJogador.JogadorTcp.ToString();
                             Enviar_mensagemJson(mensagem, tempJogador.JogadorStream);
                         }
                         else
@@ -326,7 +326,7 @@ namespace ServerMidway
             }
         }
 
-        private void HandleClientComm(object client)
+        private void CommunicaodeJogador(object client)
         {
             Tuple<TcpClient, NetworkStream> clientMessagem = (Tuple<TcpClient, NetworkStream>) client;
             TcpClient tcpClient = clientMessagem.Item1;
@@ -579,14 +579,6 @@ namespace ServerMidway
             tcpClient.Close();
         }
 
-        private void Processar_comando(object param)
-        {
-
-            object[] parametros = (object[]) param;
-            string mensagem = (string) parametros[0];
-            TcpClient cliente = (TcpClient) parametros[1];
-
-        }
 
         void LogicadeJogo()
         {

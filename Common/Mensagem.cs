@@ -26,7 +26,6 @@ namespace Common
             waitTurno,
             ganhaste,
             perdeste,
-            ingame,
             tiro,
             battle
 
