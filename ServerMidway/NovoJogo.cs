@@ -15,6 +15,8 @@ namespace ServerMidway
     {
         setup,
         battle,
+        turnoplay1,
+        turnoplay2,
         endGame
     }
     class NovoJogo
@@ -27,6 +29,7 @@ namespace ServerMidway
         private gameState estadoJogoServidor;
         private JogadorServer jogador1, jogador2;
         private bool flag;
+        private Ships DestroyedShip;
 
         public NovoJogo(JogadorServer jog1, JogadorServer jog2 )
         {
@@ -34,6 +37,12 @@ namespace ServerMidway
             this.jogador1 = jog1;
             this.jogador2 = jog2;
             IniciarTabuleiro();
+        }
+
+        public gameState GetSetEstadoLobbyGame
+        {
+            get { return this.estadoJogoServidor; }
+            set { this.estadoJogoServidor = value; }
         }
 
         public JogadorServer getJogador1
@@ -179,19 +188,28 @@ namespace ServerMidway
 
             if (playerID == 1)
             {
-                if (AddShipToPlayerList(ship)) //true
-                {
-                    Ships tempShip = new Ships(ship.getID);
-                    player1ShipList.Add(tempShip);
-                    return true;
-                }
+                if (jogador1.Budget >= ship.Cost) {
+                    if (AddShipToPlayerList(ship)) //true
+                    {
+                        Ships tempShip = new Ships(ship.getID);
+                        Console.WriteLine(" Count List " + player1ShipList.Count);
+                        player1ShipList.Add(tempShip);
 
+                        jogador1.Budget -= tempShip.Cost;
+                        Console.WriteLine("Jogador 1 budget server " + jogador1.Budget + " Count List "+player1ShipList.Count);
+                        return true;
+                    }
+                    return false;
+                }
             }else if (playerID == 2)
             {
                 if (AddShipToPlayerList(ship)) //true
                 {
                     Ships tempShip = new Ships(ship.getID);
                     player2ShipList.Add(tempShip);
+                    jogador2.Budget -= tempShip.Cost;
+                    Console.WriteLine("Jogador 2 budget server" + jogador1.Budget);
+
                     return true;
                 }
             }
@@ -240,7 +258,26 @@ namespace ServerMidway
             return null;
         }
 
-        public bool battleTiro(int x, int y, int damage, out bool navioEstaDestruido)
+        public bool Player1Perdeu()
+        {
+            if (player1ShipList.Count == 0)
+            {
+                return true;
+            }
+            return false;
+        }
+
+        public bool Player2Perdeu()
+        {
+            if (player2ShipList.Count == 0)
+            {
+                return true;
+            }
+            return false;
+        }
+
+
+        public bool battleTiro(int x, int y, int damage, out bool navioEstaDestruido, out TcpClient playerIDTcp)
         {
             string type;
             Ships searchResultShips;
@@ -248,6 +285,7 @@ namespace ServerMidway
             int size;
             int HP;
             int plyID;
+            playerIDTcp = null;
             damage = 0;
             navioEstaDestruido = false;
             if(boardPlayers[x, y] != " ")
@@ -274,6 +312,8 @@ namespace ServerMidway
                             {
                                 boardPlayers[CoordenadasSearch[l,0], CoordenadasSearch[l,1]] = " ";
                             }
+                            DestroyedShip = searchResultShips;
+                            playerIDTcp = jogador1.JogadorTcp;
                             player1ShipList.Remove(searchResultShips);
                         }else if (plyID == 2)
                         {
@@ -282,6 +322,8 @@ namespace ServerMidway
                             {
                                 boardPlayers[CoordenadasSearch[l,0], CoordenadasSearch[l,1]] = " ";
                             }
+                            DestroyedShip = searchResultShips;
+                            playerIDTcp = jogador2.JogadorTcp;
                             player2ShipList.Remove(searchResultShips);
                         }
                         navioEstaDestruido = true;

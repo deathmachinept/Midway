@@ -12,6 +12,7 @@ namespace ServerMidway
         waiting,
         setup,
         playing,
+        wait,
         endGame
     }
 

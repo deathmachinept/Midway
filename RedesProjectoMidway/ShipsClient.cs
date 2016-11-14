@@ -58,6 +58,11 @@ namespace RedesProjectoMidway
                 get { return this.hp; }
                 set { this.hp = value; }
             }
+            public int getDamage
+            {
+                get { return this.damage; }
+                set { this.damage = value; }
+            }
             public int setGetID
             {
                 get { return this.IdUnidade; }

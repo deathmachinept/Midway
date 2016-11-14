@@ -17,6 +17,17 @@ namespace Common
             ship,
             confirmacao,
             budgetJogador2,
+            budgetInsuficient,
+            budgetMaxed,
+            startBattleClient, //server manda mensagem para cliente passar para o loop de jogo
+            requestBattle,
+            checkIfShipLeft,
+            destruirNavio,
+            waitTurno,
+            ganhaste,
+            perdeste,
+            ingame,
+            tiro,
             battle
 
         }
@@ -29,6 +40,8 @@ namespace Common
             public bool confirmacao;
             public int CoordenadaX, CoordenadaY;
             public int budget2;
+            public int damage;
+            public int idJogador;
 
             public Mensagem(mensagemStateClient mensagemState)
             {

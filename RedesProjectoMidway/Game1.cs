@@ -22,8 +22,9 @@ namespace RedesProjectoMidway
     {
         wait,
         setup,
+        waitTurn,
         battle,
-        endGame,
+        endGame
     }
 
 
@@ -74,8 +75,8 @@ namespace RedesProjectoMidway
         private List<Button> ListaButton;
 
         private Interface interfacedeJogInterface;
-        private bool iniciarInterface = false, once = false, insercaoShip = false, aguardaConfirmacao = false, onceMessage = false;
-
+        private bool iniciarInterface = false, once = false, insercaoShip = false, aguardaConfirmacao = false, onceMessage = false, naoHaDinheiroParaNavio = false;
+        public bool navioAguardaDestruicao = false;
         private String MensagemServer = " ", Debug = " ", Debug2 = " ", Debug3 = " ";
         private int cmd; float timerForMessageAction = 0f, TimeSinceWaiting = 0f;
 
@@ -83,7 +84,7 @@ namespace RedesProjectoMidway
         private string[,] testeBoard;
 
         private Mensagem EnviarMensageJson;
-
+        public int destruirNavioX, destruirNavioY;
 
         public Game1()
         {
@@ -171,7 +172,7 @@ namespace RedesProjectoMidway
                         var bytesRead = networkStream.Read(receiveBuffer, 0, (int)client.ReceiveBufferSize);
                         if (bytesRead == 0)
                         {
-                            Debug = "Perdeu Player";
+                            Debug = "Server Player";
                             // Read returns 0 if the client closes the connection
                             break;
                         }
@@ -225,9 +226,8 @@ namespace RedesProjectoMidway
                 estadoCliente = gameState.setup;
 
             }
-            if (mensagemJson.estadoMensagem == mensagemStateClient.confirmacao)
+            if (mensagemJson.estadoMensagem == mensagemStateClient.confirmacao || mensagemJson.estadoMensagem == mensagemStateClient.budgetInsuficient )
             {
-                Console.WriteLine("RECEBER MSG!!");
                 onceMessage = true;
                 if (mensagemJson.confirmacao)
                 {
@@ -240,16 +240,37 @@ namespace RedesProjectoMidway
 
                 }
             }
+            if (mensagemJson.estadoMensagem == mensagemStateClient.destruirNavio)
+            {
+                destruirNavioX = mensagemJson.CoordenadaX;
+                destruirNavioY = mensagemJson.CoordenadaY;
+                Debug = mensagemJson.mensagem;
+                navioAguardaDestruicao = true;
+                Console.WriteLine("mensagem");
+            }
 
             if (mensagemJson.estadoMensagem == mensagemStateClient.budgetJogador2)
             {
-                Console.WriteLine("Buget 2!");
-                Jogador2Budget = Jogador2Budget - mensagemJson.budget2;
+                Console.WriteLine("Budget 2!");
+                if (playerID == 1)
+                {
+                    Jogador2Budget = Jogador2Budget - mensagemJson.budget2;
+                }
+                else if (playerID == 2)
+                {
+                    Jogador1Budget = Jogador1Budget - mensagemJson.budget2;
+                }
 
             }
             if (mensagemJson.estadoMensagem == mensagemStateClient.reinicia)
             {
                 estadoCliente = gameState.wait;
+                iniciarInterface = true;
+            }
+            if (mensagemJson.estadoMensagem == mensagemStateClient.budgetInsuficient)
+            {
+
+                Debug2 = mensagemJson.getMessageString;
                 iniciarInterface = true;
             }
             if (mensagemJson.estadoMensagem == mensagemStateClient.info)
@@ -258,6 +279,48 @@ namespace RedesProjectoMidway
                 Debug2 = mensagemJson.getMessageString;
                 iniciarInterface = true;
             }
+            if (mensagemJson.estadoMensagem == mensagemStateClient.perdeste)
+            {
+                Debug = "Jogador " + playerID + " Perdeu o Jogo!";
+                estadoCliente = gameState.endGame;
+            }
+            if (mensagemJson.estadoMensagem == mensagemStateClient.ganhaste)
+            {
+                Debug = "Jogador " + playerID + " Ganhou o Jogo!";
+                estadoCliente = gameState.endGame;
+            }
+            if (mensagemJson.estadoMensagem == mensagemStateClient.battle)
+            {
+
+                estadoCliente = gameState.battle;
+                Debug3 = estadoCliente.ToString();
+            }
+            if (mensagemJson.estadoMensagem == mensagemStateClient.waitTurno)
+            {
+                estadoCliente = gameState.waitTurn;
+                Debug3 = estadoCliente.ToString();
+
+            }
+            if (mensagemJson.estadoMensagem == mensagemStateClient.budgetMaxed)
+            {
+                onceMessage = true;
+                if (mensagemJson.confirmacao)
+                {
+                    Console.WriteLine("RECEBER Afirmativa!!");
+                    insercaoShip = true;
+                }
+                else
+                {
+                    insercaoShip = false;
+
+                }
+
+                Mensagem mensagemInicioBatalha = new Mensagem(mensagemStateClient.requestBattle);
+                estadoCliente = gameState.waitTurn;
+                Console.WriteLine("Inicio de batalha Waiting");
+                SendMessageToServer(mensagemInicioBatalha);
+            }
+
             //string[] messages = mensagem.Split(';');
             //foreach (string var in messages)
             //{
@@ -313,7 +376,16 @@ namespace RedesProjectoMidway
                 Exit();
             if (iniciarInterface == true)
             {
-                interfacedeJogInterface = new Interface(graphics.GraphicsDevice, Content, screenWidth, screenHeight,playerID, cellSize, DrawStartWidth, DrawStartHeight, Jogador1Budget, clientStream);
+                if (playerID == 1)
+                {
+                    interfacedeJogInterface = new Interface(graphics.GraphicsDevice, Content, screenWidth, screenHeight,
+                        playerID, cellSize, DrawStartWidth, DrawStartHeight, Jogador1Budget, clientStream);
+                }
+                else
+                {
+                    interfacedeJogInterface = new Interface(graphics.GraphicsDevice, Content, screenWidth, screenHeight,
+                        playerID, cellSize, DrawStartWidth, DrawStartHeight, Jogador2Budget, clientStream);
+                }
                 iniciarInterface = false;
                 once = true;
             }
@@ -338,13 +410,13 @@ namespace RedesProjectoMidway
                 novaMsg.inserirMensagem("A mensagem chegou?!");
                 SendMessageToServer(novaMsg);
 
-
             }
 
 
             if (estadoCliente == gameState.setup && once == true)
             {
-                interfacedeJogInterface.Update(mouseState, gameTime);
+                interfacedeJogInterface.Update(mouseState, gameTime, estadoCliente);
+
 
                 if (onceMessage && aguardaConfirmacao)
                 {
@@ -369,7 +441,15 @@ namespace RedesProjectoMidway
                     insercaoShip = false;
                     aguardaConfirmacao = false;
                     timerForMessageAction = 0f;
-                    Jogador1Budget = interfacedeJogInterface.jogadorBudget;
+                    if (playerID == 1)
+                    {
+                        Jogador1Budget = interfacedeJogInterface.jogadorBudget;
+
+                    }else
+                    {
+                        Jogador2Budget = interfacedeJogInterface.jogadorBudget;
+
+                    }
 
                 }
                 else if (aguardaConfirmacao && timerForMessageAction>5000f)
@@ -390,8 +470,35 @@ namespace RedesProjectoMidway
                     SendMessageToServer(temporaria);
                     interfacedeJogInterface.temMensagemaEnviar = false;
                 }
+                if (naoHaDinheiroParaNavio == true)
+                {
+                    Debug = "Not Enough points for ship!";
+                    interfacedeJogInterface.naoHaDinheiroParaNavio = false;
+                }
             }
 
+            if (navioAguardaDestruicao)
+            {
+                interfacedeJogInterface.DestruirNavio(destruirNavioX, destruirNavioY);
+                navioAguardaDestruicao = false;
+            }
+            if (estadoCliente == gameState.battle)
+            {
+                interfacedeJogInterface.Update(mouseState, gameTime, estadoCliente);
+                if (interfacedeJogInterface.temMensagemDeDisparo == true)
+                {
+                    SendMessageToServer(interfacedeJogInterface.getMessagemDisparo);
+                    interfacedeJogInterface.temMensagemDeDisparo = false;
+                    Mensagem novaMensagem = new Mensagem(mensagemStateClient.checkIfShipLeft);
+                    SendMessageToServer(novaMensagem);
+                }
+                
+            }
+
+            if (estadoCliente == gameState.endGame)
+                if (mouseState.LeftButton == ButtonState.Pressed) { 
+                Exit();
+                }
 
             base.Update(gameTime);
         }
@@ -404,10 +511,6 @@ namespace RedesProjectoMidway
             spriteBatch.Begin();
 
 
-
-            //for (int x = 0; x < widthBoard; x++)
-
-
             foreach (Button objCelula in ListaButton)
             {
                 objCelula.Draw(spriteBatch);
@@ -415,7 +518,11 @@ namespace RedesProjectoMidway
             }
             if (estadoCliente == gameState.setup && once == true)
             {
-                interfacedeJogInterface.Draw(spriteBatch, FontParaTitulos);
+                interfacedeJogInterface.Draw(spriteBatch, FontParaTitulos,estadoCliente);
+            }
+            if (estadoCliente == gameState.battle || estadoCliente == gameState.waitTurn)
+            {
+                interfacedeJogInterface.Draw(spriteBatch, FontParaTitulos, estadoCliente);
             }
             spriteBatch.DrawString(FontParaTitulos, "Jogador 1 ", new Vector2(15f, 15f), Color.Black);
             spriteBatch.DrawString(FontParaTitulos, "Budget: " + Jogador1Budget, new Vector2(15f, 45f), Color.Black);

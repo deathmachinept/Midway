@@ -29,6 +29,7 @@ namespace RedesProjectoMidway
         public int contarClick = 0;
         public float Tempo_Esperado = 0;
         private float scaleB = 1;
+        public int posicaoClickX, posicaoClickY;
         private typeShip casoSejaShipButton;
 
         public Button(GraphicsDevice graphics, Texture2D textura, Vector2 pos, Vector2 escalaBotao)

@@ -27,7 +27,7 @@ namespace RedesProjectoMidway
         private PoolAvailableShip iniciarAvailableShips;
 
         public ShipsClient TempNavioPorInserir;
-
+        public bool naoHaDinheiroParaNavio = false;
         private List<ShipsClient> NaviosPoolTemporario;
         private NetworkStream NetworkStreamInterface;
 
@@ -40,9 +40,13 @@ namespace RedesProjectoMidway
         public NetworkStream streamCliente;
         private Ships novoShips;
         private MensagemShip novaMensage;
-        public bool temMensagemaEnviar = false;
+        private Mensagem mensagemDisparo;
+
+        public bool temMensagemaEnviar = false, NavioDestuido = false, temMensagemDeDisparo = false;
         public ShipGridButtonPlayer botaoAguardaConfirmacao;
         private int[,] PointToCoordenadasShips; 
+
+
 
         public Interface(GraphicsDevice graphics, ContentManager content, int screenWidth, int screenHeight, int playerID, int cellDimension, int startDrawWidth, int startDrawHeight, int budget, NetworkStream clientStream)
         {
@@ -67,10 +71,46 @@ namespace RedesProjectoMidway
 
         }
 
+        public void DestruirNavio(int coordenadaX, int coordenadaY)
+        {
+            Point coordenadasEmPoint = new Point(coordenadaX,coordenadaY);
+            Point Pixeis = convertCoordenadaEmPixel(new Point(coordenadaX, coordenadaY));
+            bool foundShip;
+
+            foreach (ShipGridButtonPlayer btnGrid in ListasdeNaviosVisiveis)
+            {
+
+                if (btnGrid.obterRectangle.Contains(Pixeis))
+                {
+                    ListasdeNaviosVisiveis.Remove(btnGrid);
+                };
+
+            }
+            foreach (ShipsClient naviosJogador in JogadorNavios)
+            {
+                int size = naviosJogador.getSize;
+                for (int i = 0; i < size; i++)
+                {
+                    if (naviosJogador.GetSetCoordenadas[i] == coordenadasEmPoint)
+                    {
+                        foundShip = true;
+                        JogadorNavios.Remove(naviosJogador);
+                        NavioDestuido = true;
+                        break;
+                    }
+                }
+            }
+
+        }
 
         public MensagemShip getMessagem_A_Enviar
         {
             get { return this.novaMensage; }
+        }
+
+        public Mensagem getMessagemDisparo
+        {
+            get { return this.mensagemDisparo; }
         }
 
         public ShipGridButtonPlayer getLastButton
@@ -191,60 +231,76 @@ namespace RedesProjectoMidway
             //origem no centro
         }
 
-        public void Update(MouseState mouseState, GameTime time)
+        public void Update(MouseState mouseState, GameTime time, gameState estadoDeJogo)
         {
-            foreach (ShipButton btn in NaviosButtons)
+            if (estadoDeJogo == gameState.setup)
             {
-                btn.Update(mouseState, time);
-                if (btn.devoGerarNovoButton)
+                foreach (ShipButton btn in NaviosButtons)
                 {
-                    //NaviosPoolTemporario = iniciarAvailableShips.getAvailableShipsList;
-                    typeShip tipo = btn.getShipType;
-                    foreach (ShipsClient findType in iniciarAvailableShips.getAvailableShipsList)
+                    btn.Update(mouseState, time);
+
+                    if (btn.devoGerarNovoButton)
                     {
-                        if (findType.getTipo == tipo)
+                        //NaviosPoolTemporario = iniciarAvailableShips.getAvailableShipsList;
+                        typeShip tipo = btn.getShipType;
+
+                        #region criar navio no mapa e enviar para server
+
+                        foreach (ShipsClient findType in iniciarAvailableShips.getAvailableShipsList)
                         {
-                            if (jogadorBudget >= findType.Cost)
+                            if (findType.getTipo == tipo)
                             {
+
                                     if (mouseState.X > drawStartWidth || mouseState.Y > drawStartHeight)
                                     {
-                                        if (mouseState.X < drawStartWidth * 20 || mouseState.Y < drawStartHeight * 11)
+                                        if (mouseState.X < drawStartWidth*20 || mouseState.Y < drawStartHeight*11)
                                         {
                                             TempNavioPorInserir = findType;
                                             int tamanhoShip = TempNavioPorInserir.getSize;
                                             int offsetX = mouseState.X - btn.obterRectangle.X;
                                             int offsetY = mouseState.Y - btn.obterRectangle.Y;
-                                            PointToCoordenadasShips = new int[tamanhoShip,2];
-                                            Point tempoPointToFillArray = convertPixelEmCoordenada(btn.obterRectangle.X, btn.obterRectangle.Y);
+                                            PointToCoordenadasShips = new int[tamanhoShip, 2];
+                                            Point tempoPointToFillArray = convertPixelEmCoordenada(btn.obterRectangle.X,
+                                                btn.obterRectangle.Y);
                                             Point[] inserirCoordenadasShipCliente = new Point[tamanhoShip];
 
 
-                                            Console.WriteLine("TempPointFill "+ tempoPointToFillArray + " " + TempNavioPorInserir.getSize );
+                                            Console.WriteLine("TempPointFill " + tempoPointToFillArray + " " +
+                                                              TempNavioPorInserir.getSize);
                                             for (int i = 0; i < TempNavioPorInserir.getSize; i++)
                                             {
-                                                inserirCoordenadasShipCliente[i] = new Point(tempoPointToFillArray.X + i, tempoPointToFillArray.Y);
-                                                PointToCoordenadasShips[i, 0] = (int)tempoPointToFillArray.X + i;
-                                                PointToCoordenadasShips[i, 1] = (int)tempoPointToFillArray.Y;
+                                                inserirCoordenadasShipCliente[i] = new Point(
+                                                    tempoPointToFillArray.X + i,
+                                                    tempoPointToFillArray.Y);
+                                                PointToCoordenadasShips[i, 0] = (int) tempoPointToFillArray.X + i;
+                                                PointToCoordenadasShips[i, 1] = (int) tempoPointToFillArray.Y;
 
                                             }
 
                                             TempNavioPorInserir.GetSetCoordenadas = inserirCoordenadasShipCliente;
 
-                                            Point test = convertCoordenadaEmPixel(TempNavioPorInserir.GetSetCoordenadas[0], TempNavioPorInserir.getSize);
+                                            Point test =
+                                                convertCoordenadaEmPixel(TempNavioPorInserir.GetSetCoordenadas[0],
+                                                    TempNavioPorInserir.getSize);
 
-                                            Console.WriteLine("Reconversao " + convertPixelEmCoordenada(btn.obterRectangle.X, btn.obterRectangle.Y));
+                                            Console.WriteLine("Reconversao " +
+                                                              convertPixelEmCoordenada(btn.obterRectangle.X,
+                                                                  btn.obterRectangle.Y));
 
                                             ShipGridButtonPlayer tempAddButton = new ShipGridButtonPlayer(graphicsUI,
-                                            TempNavioPorInserir.getTextureShip,
-                                            new Vector2(test.X, test.Y),
-                                            new Vector2(0.25f, 0.25f), tipo, 1);
+                                                TempNavioPorInserir.getTextureShip,
+                                                new Vector2(test.X, test.Y),
+                                                new Vector2(0.25f, 0.25f), tipo, IdJogador);
 
-                                            Console.WriteLine("POINT Coordenadas Inseridas " + TempNavioPorInserir.GetSetCoordenadas[0] + " pos 1 " + TempNavioPorInserir.GetSetCoordenadas[1]);
-                                            Console.WriteLine("Coordenadas Inseridas " + PointToCoordenadasShips[0, 0] + " pos 1 " + PointToCoordenadasShips[1, 0]);
+                                            Console.WriteLine("POINT Coordenadas Inseridas " +
+                                                              TempNavioPorInserir.GetSetCoordenadas[0] + " pos 1 " +
+                                                              TempNavioPorInserir.GetSetCoordenadas[1]);
+                                            Console.WriteLine("Coordenadas Inseridas " + PointToCoordenadasShips[0, 0] +
+                                                              " pos 1 " + PointToCoordenadasShips[1, 0]);
 
-                                            
+
                                             botaoAguardaConfirmacao = tempAddButton;
-                                            int index = (int)tempAddButton.getShipType;
+                                            int index = (int) tempAddButton.getShipType;
                                             Common.typeShips tipoShipCommon;
 
                                             switch (index)
@@ -253,10 +309,9 @@ namespace RedesProjectoMidway
                                                     tipoShipCommon = Common.typeShips.destroyer;
                                                     novoShips = new Ships(tipoShipCommon);
                                                     novoShips.GetSetCoordenadas = PointToCoordenadasShips;
-                                                    Console.WriteLine("BUG Coordenadas Point " + PointToCoordenadasShips[0, 0] + " " + PointToCoordenadasShips[0, 1]);
+
                                                     novaMensage = new MensagemShip(mensagemStateClient.ship, novoShips);
-                                                    //novaMensage.CoordenadaX = PointToCoordenadasShips[0, 0];
-                                                    //novaMensage.CoordenadaYs = PointToCoordenadasShips[0, 1];
+
                                                     temMensagemaEnviar = true;
                                                     break;
                                                 case 1:
@@ -264,8 +319,6 @@ namespace RedesProjectoMidway
                                                     novoShips = new Ships(tipoShipCommon);
                                                     novoShips.GetSetCoordenadas = PointToCoordenadasShips;
                                                     novaMensage = new MensagemShip(mensagemStateClient.ship, novoShips);
-                                                    //novaMensage.CoordenadaX = PointToCoordenadasShips[0, 0];
-                                                    //novaMensage.CoordenadaY = PointToCoordenadasShips[0, 1];
 
                                                     temMensagemaEnviar = true;
                                                     break;
@@ -274,8 +327,7 @@ namespace RedesProjectoMidway
                                                     novoShips = new Ships(tipoShipCommon);
                                                     novoShips.GetSetCoordenadas = PointToCoordenadasShips;
                                                     novaMensage = new MensagemShip(mensagemStateClient.ship, novoShips);
-                                                    //novaMensage.CoordenadaX = PointToCoordenadasShips[0, 0];
-                                                    //novaMensage.CoordenadaY = PointToCoordenadasShips[0, 1];
+
                                                     temMensagemaEnviar = true;
 
                                                     break;
@@ -285,8 +337,7 @@ namespace RedesProjectoMidway
                                                     novoShips.GetSetCoordenadas = PointToCoordenadasShips;
 
                                                     novaMensage = new MensagemShip(mensagemStateClient.ship, novoShips);
-                                                    //novaMensage.CoordenadaX = PointToCoordenadasShips[0, 0];
-                                                    //novaMensage.CoordenadaY = PointToCoordenadasShips[0, 1];
+
                                                     temMensagemaEnviar = true;
 
                                                     break;
@@ -297,11 +348,14 @@ namespace RedesProjectoMidway
                                         }
                                         // e maior que a primeira celula
                                     }
+
                             }
                         }
+
+                        #endregion
                     }
                 }
-            }
+             //For Ship button interface
 
             foreach (ShipGridButtonPlayer btnGrid in ListasdeNaviosVisiveis)
             {
@@ -313,7 +367,8 @@ namespace RedesProjectoMidway
                     Console.WriteLine("Old Rectangulo : " + btnGrid.GetOldRectangle.X + btnGrid.GetOldRectangle.Y);
                     Console.WriteLine("Novo Rectangulo : " + btnGrid.GetOldRectangle.X + btnGrid.GetOldRectangle.Y);
 
-                    Point tempPoint = convertPixelEmCoordenadaTopLeft(btnGrid.GetOldRectangle.X, btnGrid.GetOldRectangle.Y);
+                    Point tempPoint = convertPixelEmCoordenadaTopLeft(btnGrid.GetOldRectangle.X,
+                        btnGrid.GetOldRectangle.Y);
                     Console.WriteLine("Houve Movimento Coordenadas antigas " + tempPoint.X + " , " + tempPoint.Y);
                     foreach (ShipsClient var in JogadorNavios)
                     {
@@ -326,7 +381,8 @@ namespace RedesProjectoMidway
                             //
                             if (procurarCoordenadas[i] == tempPoint)
                             {
-                                Point novaCoordenada = convertPixelEmCoordenada(btnGrid.obterRectangle.X, btnGrid.obterRectangle.Y);
+                                Point novaCoordenada = convertPixelEmCoordenada(btnGrid.obterRectangle.X,
+                                    btnGrid.obterRectangle.Y);
                                 for (int l = 0; l < var.getSize; l++)
                                 {
 
@@ -341,14 +397,40 @@ namespace RedesProjectoMidway
                     }
                 }
             }
-        }
-
-
-        public void Draw(SpriteBatch spritebatch, SpriteFont fonte)
-        {
-            foreach (ShipButton btn in NaviosButtons)
+        } // end estado de jogo setup
+            else if (estadoDeJogo == gameState.battle)
             {
-                btn.Draw(spritebatch);
+                foreach (ShipGridButtonPlayer btnGrid in ListasdeNaviosVisiveis)
+                {
+                    btnGrid.ActulizarBattle(mouseState, time);
+                    if (btnGrid.disparoPronto)
+                    {
+                        int damageNavio = iniciarAvailableShips.getShipType(btnGrid.getShipType).getDamage;
+
+                        mensagemDisparo = new Mensagem(mensagemStateClient.tiro);
+                        Point coordenadaDisparo = convertPixelEmCoordenada(btnGrid.posicaoDestinoAtaqueX,
+                            btnGrid.posicaoDestinoAtaqueY);
+                        mensagemDisparo.CoordenadaX = coordenadaDisparo.X;
+                        mensagemDisparo.CoordenadaY = coordenadaDisparo.Y;
+                        mensagemDisparo.damage = damageNavio;
+                        btnGrid.disparoPronto = false;
+                        temMensagemDeDisparo = true;
+
+                    }
+
+                }
+            }
+    }
+
+
+        public void Draw(SpriteBatch spritebatch, SpriteFont fonte, gameState estadoCliente)
+        {
+            if (estadoCliente == gameState.setup)
+            {
+                foreach (ShipButton btn in NaviosButtons)
+                {
+                    btn.Draw(spritebatch);
+                }
             }
 
 

@@ -18,8 +18,10 @@ namespace RedesProjectoMidway
         private int deltaScrollWheelValue = 0;
         private int currentScrollWheelValue = 0;
         private int cellSize = 64;
-        private bool movimentou = false;
+        public bool movimentou = false, esperandoAtaque = false, disparoPronto = false;
         private Rectangle oldRectangle;
+        public int posicaoDestinoAtaqueX, posicaoDestinoAtaqueY;
+
 
         public ShipGridButtonPlayer(GraphicsDevice graphics, Texture2D textura, Vector2 position, Vector2 escala, typeShip tipoNavio,int Id)
         : base(graphics, textura, position, escala, tipoNavio)
@@ -64,7 +66,7 @@ namespace RedesProjectoMidway
                 {
                     Foi_Clicado = true;
                     presoRato = true;
-                    Console.WriteLine("Oldrectangle " + oldRectangle.X + " "+ oldRectangle.Y);
+                    Console.WriteLine("Oldrectangle " + oldRectangle.X + " " + oldRectangle.Y);
                     contarClick = 1;
                 }
                 else
@@ -82,16 +84,9 @@ namespace RedesProjectoMidway
 
             if (presoRato)
             {
-                //criar botão temporario, ao largar addicionar a lista dos navios do jogador retirar pontos ao budget,
-                //chamar a lista de navios do jogagor, addicionar nav
-                //Button tempButtonLista = new Button(gdevice, texturaNavio, new Vector2(i, 25f), new Vector2(0.25f, 0.25f));
-
-                //boundingBox.X = mouseState.X - (int)((changeTexture2D.Width * getEscalaButton.X) / 2);
-                //boundingBox.Y = mouseState.Y - (int)((changeTexture2D.Height * getEscalaButton.Y) / 2);
                 movimentou = false;
                 boundingBox.X = (mouseState.X);
                 boundingBox.Y = (mouseState.Y);
-
 
                 if (deltaScrollWheelValue > 0)
                 {
@@ -103,7 +98,7 @@ namespace RedesProjectoMidway
                 }
 
             }
-            else if(presoRato == false && Foi_Clicado == true)
+            else if (presoRato == false && Foi_Clicado == true)
             {
                 boundingBox.X = (mouseState.X);
                 boundingBox.Y = (mouseState.Y);
@@ -111,7 +106,49 @@ namespace RedesProjectoMidway
             }
 
             Tempo_Esperado += time.ElapsedGameTime.Milliseconds;
+        }
 
+
+        public void ActulizarBattle(MouseState mouseState, GameTime time)
+        {
+            // Contem o rato sobre o botao carrega a primeira vez no botao do navio
+            if (boundingBox.Contains(mouseState.Position.X, mouseState.Position.Y)){
+                Esta_Por_Cima = true;
+                esperandoAtaque = true; // entra no primeiro sele
+            }
+            else
+                Esta_Por_Cima = false;
+
+            if (Esta_Por_Cima && mouseState.LeftButton == ButtonState.Pressed && Tempo_Esperado >= 250)
+            {
+                if (contarClick == 0)
+                {
+                    Foi_Clicado = true;
+                    contarClick = 1;
+                }
+
+                Tempo_Esperado = 0;
+            }
+            else if (contarClick == 1 && mouseState.LeftButton == ButtonState.Pressed && Tempo_Esperado >= 250)
+            {
+                //Ataque de coordenada
+                posicaoDestinoAtaqueX = mouseState.X;
+                posicaoDestinoAtaqueY = mouseState.Y;
+                contarClick = 0;
+                esperandoAtaque = false;
+                disparoPronto = true;
+                Tempo_Esperado = 0;
+
+            }
+
+
+            if (Foi_Clicado == true && contarClick == 1)
+            {
+                posicaoClickX = mouseState.X;
+                posicaoClickY = mouseState.Y;
+            }
+
+            Tempo_Esperado += time.ElapsedGameTime.Milliseconds;
         }
 
         //public Point convertPixelEmCoordenada(int width, int height)
